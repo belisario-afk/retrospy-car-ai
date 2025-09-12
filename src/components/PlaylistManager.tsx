@@ -1,15 +1,20 @@
 import React, { useEffect, useState } from "react";
 import { SpotifyAPI } from "../lib/spotify/api";
+import type {
+  CurrentUsersProfileResponse,
+  ListOfCurrentUsersPlaylistsResponse,
+  PlaylistFull,
+  PlaylistSimplified,
+  Device
+} from "../lib/spotify/types";
 
 const PlaylistManager: React.FC<{
-  fallbackDevices: SpotifyApi.DeviceObject[] | null;
+  fallbackDevices: Device[] | null;
 }> = ({ fallbackDevices }) => {
-  const [playlists, setPlaylists] = useState<SpotifyApi.ListOfCurrentUsersPlaylistsResponse | null>(
-    null
-  );
+  const [playlists, setPlaylists] = useState<ListOfCurrentUsersPlaylistsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [newName, setNewName] = useState("");
-  const [me, setMe] = useState<SpotifyApi.CurrentUsersProfileResponse | null>(null);
+  const [me, setMe] = useState<CurrentUsersProfileResponse | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -27,12 +32,19 @@ const PlaylistManager: React.FC<{
 
   const createPlaylist = async () => {
     if (!newName.trim() || !me) return;
-    const pl = await SpotifyAPI.createPlaylist(me.id, newName, "Created from RetroSpy", false);
-    setPlaylists((prev: SpotifyApi.ListOfCurrentUsersPlaylistsResponse | null) => {
+    const pl = (await SpotifyAPI.createPlaylist(me.id, newName, "Created from RetroSpy", false)) as PlaylistFull;
+    setPlaylists((prev: ListOfCurrentUsersPlaylistsResponse | null) => {
+      const simplified: PlaylistSimplified = {
+        id: pl.id,
+        name: pl.name,
+        uri: pl.uri,
+        images: pl.images,
+        tracks: pl.tracks
+      };
       if (prev) {
-        return { ...prev, items: [pl as unknown as SpotifyApi.PlaylistObjectSimplified, ...prev.items] };
+        return { ...prev, items: [simplified, ...prev.items] };
       }
-      return { href: "", items: [pl as unknown as SpotifyApi.PlaylistObjectSimplified], limit: 1, next: null, offset: 0, previous: null, total: 1 };
+      return { href: "", items: [simplified], limit: 1, next: null, offset: 0, previous: null, total: 1 };
     });
     setNewName("");
   };
@@ -65,7 +77,7 @@ const PlaylistManager: React.FC<{
       </div>
       {loading && <div className="mt-2 animate-pulse">Loading playlists…</div>}
       <div className="mt-3 max-h-64 overflow-auto space-y-2 pr-1">
-        {playlists?.items?.map((pl) => (
+        {playlists?.items?.map((pl: PlaylistSimplified) => (
           <div
             key={pl.id}
             className="flex items-center justify-between p-2 bg-black/30 border border-neon-dim rounded"
@@ -83,7 +95,7 @@ const PlaylistManager: React.FC<{
               <button
                 className="px-2 py-1 text-xs border border-neon-dim rounded hover:bg-neon-green/10"
                 onClick={async () => {
-                  await SpotifyAPI.play({ context_uri: pl.uri! });
+                  await SpotifyAPI.play({ context_uri: pl.uri });
                 }}
               >
                 Play

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { SpotifyAPI } from "../lib/spotify/api";
-import type { CurrentPlayback } from "../lib/spotify/types";
+import type { CurrentPlayback, Track } from "../lib/spotify/types";
 
 const NowPlaying: React.FC<{
   onPlay: () => void;
@@ -29,7 +29,7 @@ const NowPlaying: React.FC<{
   }, []);
 
   const isPlaying = !!state?.is_playing;
-  const track = state?.item as SpotifyApi.TrackObjectFull | undefined;
+  const track = state?.item as Track | undefined;
 
   return (
     <section aria-label="Now Playing" className="border border-neon-dim rounded p-3">

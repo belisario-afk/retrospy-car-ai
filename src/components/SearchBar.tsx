@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import { SpotifyAPI } from "../lib/spotify/api";
 import { FaSearch, FaPlus } from "react-icons/fa";
+import type { SearchResponse, Track } from "../lib/spotify/types";
 
 const SearchBar: React.FC = () => {
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<SpotifyApi.SearchResponse | null>(null);
+  const [results, setResults] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
   const doSearch = async (e: React.FormEvent) => {
@@ -27,9 +28,7 @@ const SearchBar: React.FC = () => {
     await SpotifyAPI.queueAdd(uri);
   };
 
-  const tracks: SpotifyApi.TrackObjectFull[] = results?.tracks?.items
-    ? (results.tracks.items as SpotifyApi.TrackObjectFull[])
-    : [];
+  const tracks: Track[] = results?.tracks?.items || [];
 
   return (
     <section aria-labelledby="search" className="border border-neon-dim rounded p-3">

@@ -1,5 +1,12 @@
 import axios from "axios";
-import type { CurrentPlayback } from "./types";
+import type {
+  CurrentPlayback,
+  CurrentUsersProfileResponse,
+  ListOfCurrentUsersPlaylistsResponse,
+  PlaylistFull,
+  SearchResponse,
+  UserDevicesResponse
+} from "./types";
 
 export type TokenResponse = {
   access_token: string;
@@ -90,16 +97,13 @@ export async function apiFetch<T = unknown>(url: string, init?: RequestInit): Pr
 }
 
 export const SpotifyAPI = {
-  me: (): Promise<SpotifyApi.CurrentUsersProfileResponse> =>
-    apiFetch("https://api.spotify.com/v1/me"),
+  me: (): Promise<CurrentUsersProfileResponse> => apiFetch("https://api.spotify.com/v1/me"),
 
-  devices: (): Promise<SpotifyApi.UserDevicesResponse> =>
+  devices: (): Promise<UserDevicesResponse> =>
     apiFetch("https://api.spotify.com/v1/me/player/devices"),
 
-  // Note: Some @types/spotify-api versions do not include CurrentPlaybackResponse.
-  // We use a stable minimal shape via CurrentPlayback.
-  playbackState: (): Promise<CurrentPlayback> =>
-    apiFetch("https://api.spotify.com/v1/me/player"),
+  // Stable minimal shape via CurrentPlayback (avoids @types variance).
+  playbackState: (): Promise<CurrentPlayback> => apiFetch("https://api.spotify.com/v1/me/player"),
 
   play: (body?: {
     uris?: string[];
@@ -139,19 +143,19 @@ export const SpotifyAPI = {
     }),
 
   search: (q: string, types = ["track", "album", "artist"], limit = 10) =>
-    apiFetch<SpotifyApi.SearchResponse>(
+    apiFetch<SearchResponse>(
       `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${types.join(
         ","
       )}&limit=${limit}`
     ),
 
   myPlaylists: (limit = 20) =>
-    apiFetch<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>(
+    apiFetch<ListOfCurrentUsersPlaylistsResponse>(
       `https://api.spotify.com/v1/me/playlists?limit=${limit}`
     ),
 
   createPlaylist: (userId: string, name: string, description = "", isPublic = false) =>
-    apiFetch<SpotifyApi.PlaylistObjectFull>(`https://api.spotify.com/v1/users/${userId}/playlists`, {
+    apiFetch<PlaylistFull>(`https://api.spotify.com/v1/users/${userId}/playlists`, {
       method: "POST",
       body: JSON.stringify({ name, description, public: isPublic })
     }),
@@ -163,9 +167,7 @@ export const SpotifyAPI = {
     }),
 
   getCurrentlyPlaying: () =>
-    apiFetch<SpotifyApi.CurrentlyPlayingResponse>(
-      "https://api.spotify.com/v1/me/player/currently-playing"
-    ),
+    apiFetch("https://api.spotify.com/v1/me/player/currently-playing"),
 
   queueAdd: (uri: string) =>
     apiFetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(uri)}`, {

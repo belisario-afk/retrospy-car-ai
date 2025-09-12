@@ -5,12 +5,13 @@ import NowPlaying from "./NowPlaying";
 import SearchBar from "./SearchBar";
 import PlaylistManager from "./PlaylistManager";
 import MouthVisualizer from "./MouthVisualizer";
+import type { Device } from "../lib/spotify/types";
 
 const SpotifyPlayer: React.FC = () => {
   const [status, setStatus] = useState<"init" | "webplayback" | "fallback" | "error">("init");
   const [message, setMessage] = useState<string>("");
   const playerRef = useRef<Spotify.Player | null>(null);
-  const [fallbackDevices, setFallbackDevices] = useState<SpotifyApi.DeviceObject[] | null>(null);
+  const [fallbackDevices, setFallbackDevices] = useState<Device[] | null>(null);
   const [volume, setVolume] = useState<number>(80);
   const [amplitude, setAmplitude] = useState(0.04);
 
@@ -45,7 +46,7 @@ const SpotifyPlayer: React.FC = () => {
         );
         // Fetch available devices for fallback control
         const devices = await getDevices();
-        setFallbackDevices(devices.devices as unknown as SpotifyApi.DeviceObject[]);
+        setFallbackDevices(devices.devices);
       }
     })();
     return () => {

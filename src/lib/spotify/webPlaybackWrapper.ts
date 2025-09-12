@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { getStoredToken, isTokenExpired, refreshAccessToken, SpotifyAPI } from "./api";
+import type { UserDevicesResponse } from "./types";
 
 /**
  * Wrapper to load and manage Spotify Web Playback SDK.
@@ -122,6 +123,6 @@ export async function transferToDevice(deviceId: string): Promise<void> {
   await SpotifyAPI.transferPlayback(deviceId, true);
 }
 
-export async function getDevices(): Promise<SpotifyApi.UserDevicesResponse> {
+export async function getDevices(): Promise<UserDevicesResponse> {
   return await SpotifyAPI.devices();
 }
