@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CRT look + scanlines and subtle chromatic aberration */
+:root {
+  --crt-green: #39ff14;
+  --crt-dim: #19c70c;
+  --crt-bg: #0a0f0a;
+}
+
+body {
+  background: radial-gradient(ellipse at center, rgba(0, 40, 0, 0.6), #000) fixed,
+    repeating-linear-gradient(
+      0deg,
+      rgba(0, 255, 0, 0.04),
+      rgba(0, 255, 0, 0.04) 2px,
+      rgba(0, 0, 0, 0.06) 2px,
+      rgba(0, 0, 0, 0.06) 4px
+    );
+  text-shadow: 0 0 6px rgba(57, 255, 20, 0.3);
+}
+
+.crt {
+  position: relative;
+  isolation: isolate;
+}
+
+.crt::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(57, 255, 20, 0.03),
+    rgba(57, 255, 20, 0.01)
+  );
+  mix-blend-mode: overlay;
+}
+
+.crt-scanline {
+  position: absolute;
+  top: -100%;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(
+    to bottom,
+    rgba(57, 255, 20, 0) 0%,
+    rgba(57, 255, 20, 0.08) 50%,
+    rgba(57, 255, 20, 0) 100%
+  );
+  animation: scanline 6s linear infinite;
+  z-index: 2;
+}
+
+.glitch {
+  filter: drop-shadow(0 0 4px rgba(57, 255, 20, 0.5));
+}
+
+/* Double-DIN responsive area (approx 180 x 100 mm ~ 7.1 x 3.9 inches).
+   Optimized for 8" tablet aspect; scales fluidly with max widths. */
+.double-din {
+  width: min(100vw, 1024px);
+  /* 7.1:3.9 -> aspect ≈ 1.82 */
+  aspect-ratio: 1.82 / 1;
+  max-height: 85vh;
+  margin: 0 auto;
+  border: 1px solid rgba(57, 255, 20, 0.25);
+  box-shadow: 0 0 24px rgba(57, 255, 20, 0.2), inset 0 0 24px rgba(57, 255, 20, 0.1);
+  background: rgba(0, 20, 0, 0.6);
+  backdrop-filter: blur(2px);
+}
