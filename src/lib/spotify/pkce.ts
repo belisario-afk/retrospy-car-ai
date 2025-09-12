@@ -1,47 +1,53 @@
-// PKCE utilities per RFC 7636 using SHA-256 S256 method.
-function dec2hex(dec: number) {
-  return ("0" + dec.toString(16)).substr(-2);
-}
+// PKCE utilities
 
-function randomString(length: number) {
-  const arr = new Uint8Array(length);
-  window.crypto.getRandomValues(arr);
-  return Array.from(arr, dec2hex).join("");
-}
-
-/**
- * Generates a cryptographically random code verifier string.
- */
-export function generateCodeVerifier(): string {
-  return randomString(56);
-}
-
-function base64urlencode(a: ArrayBuffer) {
-  let str = "";
-  const bytes = new Uint8Array(a);
-  const len = bytes.byteLength;
-  for (let i = 0; i < len; i++) {
-    str += String.fromCharCode(bytes[i]);
+function base64urlencode(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(str).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  // btoa only supports binary strings
+  const base64 = btoa(binary);
+  return base64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-/**
- * Derives a code challenge from a code verifier using SHA-256 then base64url.
- */
+function getCrypto(): Crypto | undefined {
+  // Prefer window.crypto in browsers
+  if (typeof window !== "undefined") {
+    const win = window as unknown as { crypto?: Crypto };
+    if (win.crypto && typeof win.crypto.subtle !== "undefined") return win.crypto;
+  }
+  // Fallback to globalThis.crypto (works in Node >= 16.5 with webcrypto)
+  const globalMaybe = globalThis as unknown as { crypto?: Crypto };
+  if (globalMaybe.crypto && typeof globalMaybe.crypto.subtle !== "undefined") return globalMaybe.crypto;
+  return undefined;
+}
+
 export async function generateCodeChallenge(verifier: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(verifier);
-  const digest = await window.crypto.subtle.digest("SHA-256", data);
+  const cryptoApi = getCrypto();
+  if (!cryptoApi?.subtle) {
+    throw new Error("WebCrypto SubtleCrypto API is not available");
+  }
+  const digest = await cryptoApi.subtle.digest("SHA-256", data);
   return base64urlencode(digest);
 }
 
-/**
- * Helper: parse OAuth2 hash or query params (not heavily used here; left for completeness)
- */
-export function parseHashParams(hashOrQuery: string): Record<string, string> {
-  const params = new URLSearchParams(hashOrQuery.replace(/^#/, ""));
-  const out: Record<string, string> = {};
-  params.forEach((v, k) => (out[k] = v));
-  return out;
+// Optional helpers (kept to avoid breaking imports)
+const PKCE_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~";
+export function generateCodeVerifier(length = 64): string {
+  let result = "";
+  const array = new Uint8Array(length);
+  const cryptoApi = getCrypto();
+  if (cryptoApi?.getRandomValues) {
+    cryptoApi.getRandomValues(array);
+  } else {
+    // Non-cryptographic fallback for environments without getRandomValues (should not be used in prod)
+    for (let i = 0; i < length; i++) array[i] = Math.floor(Math.random() * 256);
+  }
+  for (let i = 0; i < length; i++) {
+    result += PKCE_CHARS[array[i] % PKCE_CHARS.length];
+  }
+  return result;
 }
