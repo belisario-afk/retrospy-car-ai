@@ -1,82 +1,147 @@
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
+import { exchangeCodeForToken } from "../lib/api";
 import { generateCodeChallenge, generateCodeVerifier } from "../lib/spotify/pkce";
-import { storeToken, exchangeCodeForToken, getStoredToken } from "../lib/spotify/api";
-import { CLIENT_ID, REDIRECT_URI } from "../config";
 
-/**
- * React hook that encapsulates the Authorization Code with PKCE flow.
- * - Uses localStorage to persist verifier and tokens.
- * - Never stores a client secret in the client (PKCE is recommended for SPAs).
- */
-export const usePKCE = () => {
-  const isRedirectCallback = useCallback(() => {
-    // Detect ?code= or ?error= on any route (Pages serves index.html for all routes)
+const PKCE_VERIFIER_KEY = "pkce:verifier";
+const PKCE_STATE_KEY = "pkce:state";
+
+// Token storage keys (used if no onAuthenticated handler is provided)
+const TOKEN_KEY = "spotify:access_token";
+const REFRESH_TOKEN_KEY = "spotify:refresh_token";
+const EXPIRES_AT_KEY = "spotify:token_expires_at";
+
+function getRedirectUri(): string {
+  // Prefer explicit env. Must match the Spotify Dashboard value exactly.
+  const fromEnv = process.env.REACT_APP_SPOTIFY_REDIRECT_URI;
+  if (fromEnv && fromEnv.length > 0) return fromEnv;
+
+  // Fallback: derive from PUBLIC_URL (CRA injects this at build)
+  const publicUrl = process.env.PUBLIC_URL;
+  if (publicUrl) {
+    try {
+      const url = new URL(publicUrl);
+      return `${url.origin}${url.pathname.replace(/\/?$/, "")}/callback`;
+    } catch {
+      // PUBLIC_URL could be relative; use current origin + path
+      const basePath = publicUrl.replace(/\/?$/, "");
+      return `${window.location.origin}${basePath}/callback`;
+    }
+  }
+  // Last resort: origin + /callback
+  return `${window.location.origin}/callback`;
+}
+
+function getBasePathFromPublicUrl(): string {
+  const publicUrl = process.env.PUBLIC_URL;
+  if (!publicUrl) return "/";
+  try {
+    const u = new URL(publicUrl, window.location.origin);
+    const p = u.pathname.endsWith("/") ? u.pathname : `${u.pathname}/`;
+    return p;
+  } catch {
+    const p = publicUrl.startsWith("/") ? publicUrl : `/${publicUrl}`;
+    return p.endsWith("/") ? p : `${p}/`;
+  }
+}
+
+export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
+  const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID ?? "";
+  const redirectUri = getRedirectUri();
+
+  const login = useCallback(async (scopes: string[]) => {
+    const verifier = generateCodeVerifier(64);
+    sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+
+    const challenge = await generateCodeChallenge(verifier);
+    const state = Math.random().toString(36).slice(2, 12);
+    sessionStorage.setItem(PKCE_STATE_KEY, state);
+
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      code_challenge_method: "S256",
+      code_challenge: challenge,
+      state,
+      scope: scopes.join(" ")
+    });
+
+    window.location.assign(`https://accounts.spotify.com/authorize?${params.toString()}`);
+  }, [clientId, redirectUri]);
+
+  const isRedirectCallback = useCallback((): boolean => {
     const params = new URLSearchParams(window.location.search);
     return params.has("code") || params.has("error");
   }, []);
 
-  const startLogin = useCallback(async () => {
-    const verifier = generateCodeVerifier();
-    localStorage.setItem("spotify_pkce_verifier", verifier);
-
-    const challenge = await generateCodeChallenge(verifier);
-
-    const scope = [
-      "user-read-private",
-      "user-read-email",
-      "streaming",
-      "user-read-playback-state",
-      "user-modify-playback-state",
-      "playlist-read-private",
-      "playlist-modify-public",
-      "playlist-modify-private",
-      "user-library-read",
-      "user-read-currently-playing",
-      "user-read-recently-played"
-    ].join(" ");
-
-    // Guardrails: if for some reason values are empty, abort with a clear message
-    if (!CLIENT_ID || !REDIRECT_URI) {
-      alert("Spotify client configuration is missing. Please set REACT_APP_SPOTIFY_CLIENT_ID and REACT_APP_SPOTIFY_REDIRECT_URI in .env and rebuild.");
-      throw new Error("Missing CLIENT_ID or REDIRECT_URI");
-    }
-
-    const params = new URLSearchParams({
-      response_type: "code",
-      client_id: CLIENT_ID,
-      scope,
-      redirect_uri: REDIRECT_URI,
-      code_challenge_method: "S256",
-      code_challenge: challenge
-    });
-    window.location.assign(`https://accounts.spotify.com/authorize?${params.toString()}`);
-  }, []);
-
   const handleRedirectCallback = useCallback(async () => {
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
-    const error = params.get("error");
-    const verifier = localStorage.getItem("spotify_pkce_verifier");
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    const state = url.searchParams.get("state");
+    const error = url.searchParams.get("error");
 
     if (error) {
-      throw new Error(error);
+      console.error("OAuth error:", error);
+      // Clean URL and bail
+      const clean = getBasePathFromPublicUrl();
+      window.history.replaceState({}, document.title, clean);
+      return;
     }
-    if (!code || !verifier) {
-      throw new Error("Missing auth code or verifier");
+
+    if (!code) return;
+
+    const expectedState = sessionStorage.getItem(PKCE_STATE_KEY);
+    if (!state || state !== expectedState) {
+      console.error("OAuth state mismatch");
+      return;
     }
-    // Exchange code for token
-    const token = await exchangeCodeForToken(code, verifier);
-    storeToken(token);
-    // Clean URL query params
-    const url = new URL(window.location.href);
-    url.search = "";
-    window.history.replaceState({}, document.title, url.toString());
-  }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem("spotify_auth_token");
-    localStorage.removeItem("spotify_pkce_verifier");
-  }, []);
+    const verifier = sessionStorage.getItem(PKCE_VERIFIER_KEY);
+    if (!verifier) {
+      console.error("Missing PKCE code_verifier in sessionStorage");
+      return;
+    }
 
-  return { startLogin, handleRedirectCallback, isRedirectCallback, logout, token: getStoredToken() };
-};
+    try {
+      const token = await exchangeCodeForToken({
+        code,
+        codeVerifier: verifier,
+        clientId,
+        redirectUri
+      });
+
+      // Clear transient storage and query
+      sessionStorage.removeItem(PKCE_VERIFIER_KEY);
+      sessionStorage.removeItem(PKCE_STATE_KEY);
+
+      // Store tokens if no external handler is provided
+      if (onAuthenticated) {
+        onAuthenticated(token.access_token);
+      } else {
+        try {
+          const expiresAt = Date.now() + token.expires_in * 1000;
+          localStorage.setItem(TOKEN_KEY, token.access_token);
+          if (token.refresh_token) localStorage.setItem(REFRESH_TOKEN_KEY, token.refresh_token);
+          localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
+        } catch {
+          // Storage may be unavailable in private mode; ignore
+        }
+      }
+
+      // Clean the URL back to the app base path
+      const clean = getBasePathFromPublicUrl();
+      window.history.replaceState({}, document.title, clean);
+    } catch (err) {
+      console.error("Token exchange failed", err);
+    }
+  }, [clientId, onAuthenticated, redirectUri]);
+
+  // Auto-handle callback on mount if present (keeps compatibility with old usage)
+  useEffect(() => {
+    if (isRedirectCallback()) {
+      void handleRedirectCallback();
+    }
+  }, [handleRedirectCallback, isRedirectCallback]);
+
+  return { login, handleRedirectCallback, isRedirectCallback };
+}
