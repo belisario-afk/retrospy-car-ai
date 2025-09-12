@@ -39,33 +39,59 @@ function getBasePathFromPublicUrl(): string {
   }
 }
 
+function getDefaultScopes(): string[] {
+  const raw = process.env.REACT_APP_SPOTIFY_SCOPES;
+  if (raw && raw.trim().length > 0) {
+    return raw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+  }
+  // Reasonable defaults for playback + profile
+  return [
+    "user-read-email",
+    "user-read-private",
+    "streaming",
+    "user-read-playback-state",
+    "user-modify-playback-state",
+    "user-read-currently-playing",
+    "playlist-read-private"
+  ];
+}
+
 export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
   const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID ?? "";
   const redirectUri = getRedirectUri();
 
-  const login = useCallback(async (scopes: string[]) => {
-    const verifier = generateCodeVerifier(64);
-    sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
+  const login = useCallback(
+    async (scopes: string[]) => {
+      const verifier = generateCodeVerifier(64);
+      sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
 
-    const challenge = await generateCodeChallenge(verifier);
-    const state = Math.random().toString(36).slice(2, 12);
-    sessionStorage.setItem(PKCE_STATE_KEY, state);
+      const challenge = await generateCodeChallenge(verifier);
+      const state = Math.random().toString(36).slice(2, 12);
+      sessionStorage.setItem(PKCE_STATE_KEY, state);
 
-    const params = new URLSearchParams({
-      response_type: "code",
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      code_challenge_method: "S256",
-      code_challenge: challenge,
-      state,
-      scope: scopes.join(" ")
-    });
+      const params = new URLSearchParams({
+        response_type: "code",
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        code_challenge_method: "S256",
+        code_challenge: challenge,
+        state,
+        scope: scopes.join(" ")
+      });
 
-    window.location.assign(`https://accounts.spotify.com/authorize?${params.toString()}`);
-  }, [clientId, redirectUri]);
+      window.location.assign(`https://accounts.spotify.com/authorize?${params.toString()}`);
+    },
+    [clientId, redirectUri]
+  );
 
-  // Backwards-compatible alias
-  const startLogin = login;
+  // Backwards-compatible alias that allows optional scopes
+  const startLogin = useCallback(
+    async (scopes?: string[]) => {
+      const effectiveScopes = scopes && scopes.length ? scopes : getDefaultScopes();
+      return login(effectiveScopes);
+    },
+    [login]
+  );
 
   const isRedirectCallback = useCallback((): boolean => {
     const params = new URLSearchParams(window.location.search);
