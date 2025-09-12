@@ -62,6 +62,14 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
 
   const login = useCallback(
     async (scopes: string[]) => {
+      if (!clientId) {
+        console.error(
+          "REACT_APP_SPOTIFY_CLIENT_ID is missing. Set it in .env and rebuild. Aborting login."
+        );
+        alert("Spotify Client ID missing. Configure .env and rebuild.");
+        return;
+      }
+
       const verifier = generateCodeVerifier(64);
       sessionStorage.setItem(PKCE_VERIFIER_KEY, verifier);
 
