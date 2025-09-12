@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { generateCodeChallenge, generateCodeVerifier } from "../lib/spotify/pkce";
 import { storeToken, exchangeCodeForToken, getStoredToken } from "../lib/spotify/api";
+import { CLIENT_ID, REDIRECT_URI } from "../config";
 
 /**
  * React hook that encapsulates the Authorization Code with PKCE flow.
@@ -9,14 +10,12 @@ import { storeToken, exchangeCodeForToken, getStoredToken } from "../lib/spotify
  */
 export const usePKCE = () => {
   const isRedirectCallback = useCallback(() => {
-    // CRA serves SPA; redirect to /callback is just a client route. We detect ?code= or error in query string.
+    // Detect ?code= or ?error= on any route (Pages serves index.html for all routes)
     const params = new URLSearchParams(window.location.search);
     return params.has("code") || params.has("error");
   }, []);
 
   const startLogin = useCallback(async () => {
-    const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID!;
-    const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI!;
     const verifier = generateCodeVerifier();
     localStorage.setItem("spotify_pkce_verifier", verifier);
 
@@ -36,11 +35,17 @@ export const usePKCE = () => {
       "user-read-recently-played"
     ].join(" ");
 
+    // Guardrails: if for some reason values are empty, abort with a clear message
+    if (!CLIENT_ID || !REDIRECT_URI) {
+      alert("Spotify client configuration is missing. Please set REACT_APP_SPOTIFY_CLIENT_ID and REACT_APP_SPOTIFY_REDIRECT_URI in .env and rebuild.");
+      throw new Error("Missing CLIENT_ID or REDIRECT_URI");
+    }
+
     const params = new URLSearchParams({
       response_type: "code",
-      client_id: clientId,
+      client_id: CLIENT_ID,
       scope,
-      redirect_uri: redirectUri,
+      redirect_uri: REDIRECT_URI,
       code_challenge_method: "S256",
       code_challenge: challenge
     });
