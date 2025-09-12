@@ -4,6 +4,14 @@ import { useEffect, useRef, useState } from "react";
  * Hook that provides a simple amplitude value (0..1) from an HTMLAudioElement.
  * Used in mock mode or for local audio visualization.
  */
+
+type AudioContextCtor = new () => AudioContext;
+
+type WindowWithWebAudio = Window & {
+  AudioContext?: AudioContextCtor;
+  webkitAudioContext?: AudioContextCtor;
+};
+
 export function useAudioAnalyser(audio?: HTMLAudioElement | null) {
   const [amplitude, setAmplitude] = useState(0);
   const ctxRef = useRef<AudioContext | null>(null);
@@ -14,7 +22,15 @@ export function useAudioAnalyser(audio?: HTMLAudioElement | null) {
 
   useEffect(() => {
     if (!audio) return;
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+    const w = window as WindowWithWebAudio;
+    const AudioCtor = w.AudioContext ?? w.webkitAudioContext;
+    if (!AudioCtor) {
+      // Browser does not support Web Audio API
+      return;
+    }
+
+    const ctx = new AudioCtor();
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
     const src = ctx.createMediaElementSource(audio);
@@ -44,9 +60,17 @@ export function useAudioAnalyser(audio?: HTMLAudioElement | null) {
 
     return () => {
       if (raf.current) cancelAnimationFrame(raf.current);
-      src.disconnect();
-      analyser.disconnect();
-      ctx.close();
+      try {
+        src.disconnect();
+      } catch {
+        // ignore
+      }
+      try {
+        analyser.disconnect();
+      } catch {
+        // ignore
+      }
+      ctx.close().catch(() => {});
     };
   }, [audio]);
 

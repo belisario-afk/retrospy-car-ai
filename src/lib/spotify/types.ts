@@ -50,7 +50,8 @@ export interface PlaylistSimplified {
   tracks: PlaylistTracksRef;
 }
 
-export interface PlaylistFull extends PlaylistSimplified {}
+// Alias instead of empty extension to satisfy eslint rule @typescript-eslint/no-empty-object-type
+export type PlaylistFull = PlaylistSimplified;
 
 export interface ListOfCurrentUsersPlaylistsResponse {
   href?: string;

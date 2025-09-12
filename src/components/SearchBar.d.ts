@@ -1,8 +1,1 @@
-// Assist TS for Spotify types if missing in environment.
-declare namespace SpotifyApi {
-  interface SearchResponse {
-    tracks?: {
-      items: any[];
-    };
-  }
-}
+// Deprecated: replaced by src/lib/spotify/types. This file is intentionally empty to avoid lint/type conflicts.
