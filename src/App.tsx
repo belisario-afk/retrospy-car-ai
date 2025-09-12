@@ -60,11 +60,7 @@ const App: React.FC = () => {
     <TTSProvider>
       <div className={classNames("min-h-screen text-neon-green font-mono", "crt relative")}>
         <div className="crt-scanline" aria-hidden="true"></div>
-        <AppShell
-          onNavigate={(route) => nav.setRoute(route)}
-          currentRoute={nav.route}
-          authed={authed}
-        />
+        <AppShell onNavigate={(route) => nav.setRoute(route)} currentRoute={nav.route} />
         <main className="double-din p-3 sm:p-4 md:p-6 mt-2">{content}</main>
       </div>
     </TTSProvider>

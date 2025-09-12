@@ -1,15 +1,11 @@
 import React from "react";
-import { useTTS } from "../lib/tts";
 
 type Props = {
   currentRoute: "dash" | "settings" | "bezel" | "callback" | "connect";
-  authed: boolean;
   onNavigate: (route: Props["currentRoute"]) => void;
 };
 
-const AppShell: React.FC<Props> = ({ currentRoute, onNavigate, authed }) => {
-  const { settings } = useTTS();
-
+const AppShell: React.FC<Props> = ({ currentRoute, onNavigate }) => {
   return (
     <header
       className="w-full px-4 py-3 sm:px-6 sticky top-0 bg-black/60 backdrop-blur z-20 border-b border-neon-dim"
@@ -49,9 +45,6 @@ const AppShell: React.FC<Props> = ({ currentRoute, onNavigate, authed }) => {
             Settings
           </button>
         </nav>
-      </div>
-      <div className="max-w-6xl mx-auto mt-1 text-xs opacity-70">
-        <span>Voice: {settings.voiceURI || "Auto"}</span>
       </div>
       <div className="absolute inset-x-0 bottom-0 h-px bg-[linear-gradient(90deg,transparent,rgba(57,255,20,.5),transparent)]"></div>
     </header>

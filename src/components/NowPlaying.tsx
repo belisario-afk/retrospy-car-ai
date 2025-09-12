@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { SpotifyAPI } from "../lib/spotify/api";
+import type { CurrentPlayback } from "../lib/spotify/types";
 
 const NowPlaying: React.FC<{
   onPlay: () => void;
@@ -7,7 +8,7 @@ const NowPlaying: React.FC<{
   onNext: () => void;
   onPrev: () => void;
 }> = ({ onPlay, onPause, onNext, onPrev }) => {
-  const [state, setState] = useState<SpotifyApi.CurrentPlaybackResponse | null>(null);
+  const [state, setState] = useState<CurrentPlayback | null>(null);
 
   useEffect(() => {
     let active = true;

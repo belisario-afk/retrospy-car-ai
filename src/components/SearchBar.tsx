@@ -23,6 +23,14 @@ const SearchBar: React.FC = () => {
     await SpotifyAPI.play({ uris: [uri] });
   };
 
+  const addToQueue = async (uri: string) => {
+    await SpotifyAPI.queueAdd(uri);
+  };
+
+  const tracks: SpotifyApi.TrackObjectFull[] = results?.tracks?.items
+    ? (results.tracks.items as SpotifyApi.TrackObjectFull[])
+    : [];
+
   return (
     <section aria-labelledby="search" className="border border-neon-dim rounded p-3">
       <form onSubmit={doSearch} className="flex gap-2 items-center">
@@ -48,9 +56,9 @@ const SearchBar: React.FC = () => {
         </button>
       </form>
       {loading && <div className="mt-2 animate-pulse">Scanning…</div>}
-      {results?.tracks && (
+      {tracks.length > 0 && (
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {results.tracks.items.map((t) => (
+          {tracks.map((t) => (
             <div
               key={t.id}
               className="flex items-center justify-between gap-2 p-2 bg-black/30 border border-neon-dim rounded"
@@ -81,9 +89,7 @@ const SearchBar: React.FC = () => {
                 </button>
                 <button
                   className="px-2 py-1 text-xs border border-neon-dim rounded hover:bg-neon-green/10"
-                  onClick={async () => {
-                    await SpotifyAPI.addTracksToPlaylist("queue", [t.uri] as any);
-                  }}
+                  onClick={() => addToQueue(t.uri)}
                   aria-label={`Queue ${t.name}`}
                   title="Add to Queue"
                 >

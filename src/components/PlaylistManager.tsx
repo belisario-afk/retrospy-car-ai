@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { SpotifyAPI } from "../lib/spotify/api";
 
 const PlaylistManager: React.FC<{
-  fallbackDevices: SpotifyApi.UserDevice[] | null;
+  fallbackDevices: SpotifyApi.DeviceObject[] | null;
 }> = ({ fallbackDevices }) => {
   const [playlists, setPlaylists] = useState<SpotifyApi.ListOfCurrentUsersPlaylistsResponse | null>(
     null
@@ -28,11 +28,12 @@ const PlaylistManager: React.FC<{
   const createPlaylist = async () => {
     if (!newName.trim() || !me) return;
     const pl = await SpotifyAPI.createPlaylist(me.id, newName, "Created from RetroSpy", false);
-    setPlaylists((prev) =>
-      prev
-        ? { ...prev, items: [pl as any, ...prev.items] }
-        : ({ items: [pl] } as unknown as SpotifyApi.ListOfCurrentUsersPlaylistsResponse)
-    );
+    setPlaylists((prev: SpotifyApi.ListOfCurrentUsersPlaylistsResponse | null) => {
+      if (prev) {
+        return { ...prev, items: [pl as unknown as SpotifyApi.PlaylistObjectSimplified, ...prev.items] };
+      }
+      return { href: "", items: [pl as unknown as SpotifyApi.PlaylistObjectSimplified], limit: 1, next: null, offset: 0, previous: null, total: 1 };
+    });
     setNewName("");
   };
 
@@ -82,16 +83,14 @@ const PlaylistManager: React.FC<{
               <button
                 className="px-2 py-1 text-xs border border-neon-dim rounded hover:bg-neon-green/10"
                 onClick={async () => {
-                  await SpotifyAPI.play({ context_uri: pl.uri });
+                  await SpotifyAPI.play({ context_uri: pl.uri! });
                 }}
               >
                 Play
               </button>
               <button
                 className="px-2 py-1 text-xs border border-neon-dim rounded hover:bg-neon-green/10"
-                onClick={async () => {
-                  // Save a demo track if present (no track picker in this minimal editor)
-                  // In real use, this would open track selection
+                onClick={() => {
                   alert("Add tracks via Search, then save to playlists from track menus.");
                 }}
               >

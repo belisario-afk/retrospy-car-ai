@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { generateCodeChallenge, generateCodeVerifier, parseHashParams } from "../lib/spotify/pkce";
+import { generateCodeChallenge, generateCodeVerifier } from "../lib/spotify/pkce";
 import { storeToken, exchangeCodeForToken, getStoredToken } from "../lib/spotify/api";
 
 /**

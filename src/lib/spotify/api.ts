@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { CurrentPlayback } from "./types";
 
 export type TokenResponse = {
   access_token: string;
@@ -65,7 +66,7 @@ export async function exchangeCodeForToken(code: string, verifier: string): Prom
   return res.data;
 }
 
-export async function apiFetch<T = any>(url: string, init?: RequestInit): Promise<T> {
+export async function apiFetch<T = unknown>(url: string, init?: RequestInit): Promise<T> {
   let token = getStoredToken();
   if (isTokenExpired(token)) {
     token = (await refreshAccessToken()) || token;
@@ -89,53 +90,85 @@ export async function apiFetch<T = any>(url: string, init?: RequestInit): Promis
 }
 
 export const SpotifyAPI = {
-  me: () => apiFetch("https://api.spotify.com/v1/me"),
-  devices: () => apiFetch("https://api.spotify.com/v1/me/player/devices"),
-  playbackState: () => apiFetch("https://api.spotify.com/v1/me/player"),
-  play: (body?: { uris?: string[]; context_uri?: string; position_ms?: number; device_id?: string }) =>
+  me: (): Promise<SpotifyApi.CurrentUsersProfileResponse> =>
+    apiFetch("https://api.spotify.com/v1/me"),
+
+  devices: (): Promise<SpotifyApi.UserDevicesResponse> =>
+    apiFetch("https://api.spotify.com/v1/me/player/devices"),
+
+  // Note: Some @types/spotify-api versions do not include CurrentPlaybackResponse.
+  // We use a stable minimal shape via CurrentPlayback.
+  playbackState: (): Promise<CurrentPlayback> =>
+    apiFetch("https://api.spotify.com/v1/me/player"),
+
+  play: (body?: {
+    uris?: string[];
+    context_uri?: string;
+    position_ms?: number;
+    device_id?: string;
+  }) =>
     apiFetch("https://api.spotify.com/v1/me/player/play", {
       method: "PUT",
       body: JSON.stringify(body || {})
     }),
+
   pause: () =>
     apiFetch("https://api.spotify.com/v1/me/player/pause", {
       method: "PUT"
     }),
+
   next: () =>
     apiFetch("https://api.spotify.com/v1/me/player/next", {
       method: "POST"
     }),
+
   previous: () =>
     apiFetch("https://api.spotify.com/v1/me/player/previous", {
       method: "POST"
     }),
+
   setVolume: (volumePercent: number) =>
     apiFetch(`https://api.spotify.com/v1/me/player/volume?volume_percent=${volumePercent}`, {
       method: "PUT"
     }),
+
   transferPlayback: (deviceId: string, play = true) =>
     apiFetch("https://api.spotify.com/v1/me/player", {
       method: "PUT",
       body: JSON.stringify({ device_ids: [deviceId], play })
     }),
+
   search: (q: string, types = ["track", "album", "artist"], limit = 10) =>
-    apiFetch(
+    apiFetch<SpotifyApi.SearchResponse>(
       `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${types.join(
         ","
       )}&limit=${limit}`
     ),
+
   myPlaylists: (limit = 20) =>
-    apiFetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}`),
+    apiFetch<SpotifyApi.ListOfCurrentUsersPlaylistsResponse>(
+      `https://api.spotify.com/v1/me/playlists?limit=${limit}`
+    ),
+
   createPlaylist: (userId: string, name: string, description = "", isPublic = false) =>
-    apiFetch(`https://api.spotify.com/v1/users/${userId}/playlists`, {
+    apiFetch<SpotifyApi.PlaylistObjectFull>(`https://api.spotify.com/v1/users/${userId}/playlists`, {
       method: "POST",
       body: JSON.stringify({ name, description, public: isPublic })
     }),
+
   addTracksToPlaylist: (playlistId: string, uris: string[]) =>
     apiFetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks`, {
       method: "POST",
       body: JSON.stringify({ uris })
     }),
+
   getCurrentlyPlaying: () =>
-    apiFetch("https://api.spotify.com/v1/me/player/currently-playing")
+    apiFetch<SpotifyApi.CurrentlyPlayingResponse>(
+      "https://api.spotify.com/v1/me/player/currently-playing"
+    ),
+
+  queueAdd: (uri: string) =>
+    apiFetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(uri)}`, {
+      method: "POST"
+    })
 };

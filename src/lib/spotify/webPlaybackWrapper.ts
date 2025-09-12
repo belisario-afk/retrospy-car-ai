@@ -23,7 +23,7 @@ let sdkLoadingPromise: Promise<void> | null = null;
 function loadSdk(): Promise<void> {
   if (sdkLoaded) return Promise.resolve();
   if (sdkLoadingPromise) return sdkLoadingPromise;
-  sdkLoadingPromise = new Promise((resolve, reject) => {
+  sdkLoadingPromise = new Promise<void>((resolve, reject) => {
     const script = document.createElement("script");
     script.src = "https://sdk.scdn.co/spotify-player.js";
     script.async = true;

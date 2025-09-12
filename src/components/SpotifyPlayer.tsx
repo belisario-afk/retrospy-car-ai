@@ -9,9 +9,8 @@ import MouthVisualizer from "./MouthVisualizer";
 const SpotifyPlayer: React.FC = () => {
   const [status, setStatus] = useState<"init" | "webplayback" | "fallback" | "error">("init");
   const [message, setMessage] = useState<string>("");
-  const [deviceId, setDeviceId] = useState<string | null>(null);
   const playerRef = useRef<Spotify.Player | null>(null);
-  const [fallbackDevices, setFallbackDevices] = useState<SpotifyApi.UserDevice[] | null>(null);
+  const [fallbackDevices, setFallbackDevices] = useState<SpotifyApi.DeviceObject[] | null>(null);
   const [volume, setVolume] = useState<number>(80);
   const [amplitude, setAmplitude] = useState(0.04);
 
@@ -22,13 +21,12 @@ const SpotifyPlayer: React.FC = () => {
       if (!mounted) return;
       if (init.ok) {
         playerRef.current = init.player;
-        setDeviceId(init.deviceId);
         setStatus("webplayback");
         // Transfer playback
         try {
           await transferToDevice(init.deviceId);
-        } catch (e) {
-          console.warn("Transfer playback failed (likely nothing playing yet)", e);
+        } catch {
+          // Likely nothing playing yet; ignore
         }
         init.player.addListener("player_state_changed", (state) => {
           // simple amplitude pulse from progress
@@ -47,7 +45,7 @@ const SpotifyPlayer: React.FC = () => {
         );
         // Fetch available devices for fallback control
         const devices = await getDevices();
-        setFallbackDevices(devices.devices);
+        setFallbackDevices(devices.devices as unknown as SpotifyApi.DeviceObject[]);
       }
     })();
     return () => {
@@ -74,8 +72,7 @@ const SpotifyPlayer: React.FC = () => {
     setVolume(v);
     try {
       await SpotifyAPI.setVolume(v);
-    } catch (e) {
-      // ignore in webplayback (player volume set separately)
+    } catch {
       if (playerRef.current) {
         playerRef.current.setVolume(v / 100);
       }
