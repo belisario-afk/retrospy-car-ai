@@ -7,6 +7,7 @@ import type {
   SearchResponse,
   UserDevicesResponse
 } from "./types";
+import { CLIENT_ID, REDIRECT_URI } from "../../config";
 
 export type TokenResponse = {
   access_token: string;
@@ -46,7 +47,7 @@ export async function refreshAccessToken(): Promise<TokenResponse | null> {
   const params = new URLSearchParams({
     grant_type: "refresh_token",
     refresh_token: tk.refresh_token,
-    client_id: process.env.REACT_APP_SPOTIFY_CLIENT_ID!
+    client_id: CLIENT_ID
   });
 
   const res = await axios.post<TokenResponse>("https://accounts.spotify.com/api/token", params, {
@@ -58,12 +59,11 @@ export async function refreshAccessToken(): Promise<TokenResponse | null> {
 }
 
 export async function exchangeCodeForToken(code: string, verifier: string): Promise<TokenResponse> {
-  const redirectUri = process.env.REACT_APP_SPOTIFY_REDIRECT_URI!;
   const params = new URLSearchParams({
-    client_id: process.env.REACT_APP_SPOTIFY_CLIENT_ID!,
+    client_id: CLIENT_ID,
     grant_type: "authorization_code",
     code,
-    redirect_uri: redirectUri,
+    redirect_uri: REDIRECT_URI,
     code_verifier: verifier
   });
 
