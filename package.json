@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "CarAI Dash — RetroSpy: A retro-future green-on-black spy car dashboard with Spotify integration.",
-  "homepage": ".",
+  "homepage": "https://belisario-afk.github.io/retrospy-car-ai",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
+    "postbuild": "node scripts/copy-404.js",
     "deploy": "gh-pages -d build -b gh-pages",
     "test": "jest",
     "lint": "eslint \"src/**/*.{ts,tsx}\"",
