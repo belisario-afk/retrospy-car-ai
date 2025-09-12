@@ -5,29 +5,24 @@ import { generateCodeChallenge, generateCodeVerifier } from "../lib/spotify/pkce
 const PKCE_VERIFIER_KEY = "pkce:verifier";
 const PKCE_STATE_KEY = "pkce:state";
 
-// Token storage keys (used if no onAuthenticated handler is provided)
 const TOKEN_KEY = "spotify:access_token";
 const REFRESH_TOKEN_KEY = "spotify:refresh_token";
 const EXPIRES_AT_KEY = "spotify:token_expires_at";
 
 function getRedirectUri(): string {
-  // Prefer explicit env. Must match the Spotify Dashboard value exactly.
   const fromEnv = process.env.REACT_APP_SPOTIFY_REDIRECT_URI;
   if (fromEnv && fromEnv.length > 0) return fromEnv;
 
-  // Fallback: derive from PUBLIC_URL (CRA injects this at build)
   const publicUrl = process.env.PUBLIC_URL;
   if (publicUrl) {
     try {
       const url = new URL(publicUrl);
       return `${url.origin}${url.pathname.replace(/\/?$/, "")}/callback`;
     } catch {
-      // PUBLIC_URL could be relative; use current origin + path
       const basePath = publicUrl.replace(/\/?$/, "");
       return `${window.location.origin}${basePath}/callback`;
     }
   }
-  // Last resort: origin + /callback
   return `${window.location.origin}/callback`;
 }
 
@@ -69,6 +64,9 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
     window.location.assign(`https://accounts.spotify.com/authorize?${params.toString()}`);
   }, [clientId, redirectUri]);
 
+  // Backwards-compatible alias
+  const startLogin = login;
+
   const isRedirectCallback = useCallback((): boolean => {
     const params = new URLSearchParams(window.location.search);
     return params.has("code") || params.has("error");
@@ -82,7 +80,6 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
 
     if (error) {
       console.error("OAuth error:", error);
-      // Clean URL and bail
       const clean = getBasePathFromPublicUrl();
       window.history.replaceState({}, document.title, clean);
       return;
@@ -110,11 +107,9 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
         redirectUri
       });
 
-      // Clear transient storage and query
       sessionStorage.removeItem(PKCE_VERIFIER_KEY);
       sessionStorage.removeItem(PKCE_STATE_KEY);
 
-      // Store tokens if no external handler is provided
       if (onAuthenticated) {
         onAuthenticated(token.access_token);
       } else {
@@ -124,11 +119,10 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
           if (token.refresh_token) localStorage.setItem(REFRESH_TOKEN_KEY, token.refresh_token);
           localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
         } catch {
-          // Storage may be unavailable in private mode; ignore
+          // ignore storage failures
         }
       }
 
-      // Clean the URL back to the app base path
       const clean = getBasePathFromPublicUrl();
       window.history.replaceState({}, document.title, clean);
     } catch (err) {
@@ -136,12 +130,11 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
     }
   }, [clientId, onAuthenticated, redirectUri]);
 
-  // Auto-handle callback on mount if present (keeps compatibility with old usage)
   useEffect(() => {
     if (isRedirectCallback()) {
       void handleRedirectCallback();
     }
   }, [handleRedirectCallback, isRedirectCallback]);
 
-  return { login, handleRedirectCallback, isRedirectCallback };
+  return { login, startLogin, handleRedirectCallback, isRedirectCallback };
 }
