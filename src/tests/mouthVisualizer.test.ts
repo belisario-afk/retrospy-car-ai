@@ -1,23 +1,31 @@
 import { render } from "@testing-library/react";
-import React from "react";
+import React, { ReactNode } from "react";
 import MouthVisualizer from "../components/MouthVisualizer";
+import { TTSProvider } from "../lib/tts";
+
+const Wrapper: React.FC<{ children: ReactNode }> = ({ children }) => (
+  React.createElement(TTSProvider, null, children)
+);
 
 describe("MouthVisualizer", () => {
   it("renders with default amplitude", () => {
-    const { getByRole } = render(React.createElement(MouthVisualizer, null));
+    const { getByRole } = render(React.createElement(MouthVisualizer, null), { wrapper: Wrapper });
     expect(getByRole("img", { name: /mouth/i })).toBeInTheDocument();
   });
 
   it("respects external amplitude prop", () => {
     const { container, rerender } = render(
-      React.createElement(MouthVisualizer, { externalAmplitude: 0.1 })
+      React.createElement(MouthVisualizer, { externalAmplitude: 0.1 }),
+      { wrapper: Wrapper }
     );
     const before = container.querySelector("div > div") as HTMLDivElement;
-    const heightBefore = before.style.height;
+    const heightBefore = before?.style?.height;
 
-    rerender(React.createElement(MouthVisualizer, { externalAmplitude: 0.6 }));
+    rerender(
+      React.createElement(MouthVisualizer, { externalAmplitude: 0.6 })
+    );
     const after = container.querySelector("div > div") as HTMLDivElement;
-    const heightAfter = after.style.height;
+    const heightAfter = after?.style?.height;
 
     expect(heightAfter).not.toEqual(heightBefore);
   });
