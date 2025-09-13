@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 
 export type EQBand = {
   freq: number; // Hz
@@ -172,13 +172,13 @@ export const AudioFXProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
 
-  const ensureContext = () => {
+  const ensureContext = useCallback(() => {
     if (!audioContextRef.current) {
       const Ctor = getAudioContextCtor();
       audioContextRef.current = new Ctor();
     }
     return audioContextRef.current!;
-  };
+  }, []);
 
   const rebuildGraph = () => {
     const ac = ensureContext();
@@ -293,57 +293,60 @@ export const AudioFXProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setSettingsState((prev) => ({ ...prev, ...p, preset: name }));
   };
 
-  const connectSource = (el: HTMLAudioElement) => {
-    try {
-      const ac = ensureContext();
-      // Important: Spotify Web Playback SDK audio is DRM-protected; cannot be tapped here.
-      // This is for non-DRM HTMLAudioElements only.
-      const src = ac.createMediaElementSource(el);
+  const connectSource = useCallback(
+    (el: HTMLAudioElement) => {
+      try {
+        const ac = ensureContext();
+        // Important: Spotify Web Playback SDK audio is DRM-protected; cannot be tapped here.
+        // This is for non-DRM HTMLAudioElements only.
+        const src = ac.createMediaElementSource(el);
 
-      // Build per-source processing: panner -> preamp -> EQ series -> (compressor?) -> destination
-      const panner = ac.createStereoPanner();
-      panner.pan.value = Math.max(-1, Math.min(1, settings.balance));
+        // Build per-source processing: panner -> preamp -> EQ series -> (compressor?) -> destination
+        const panner = ac.createStereoPanner();
+        panner.pan.value = Math.max(-1, Math.min(1, settings.balance));
 
-      const preamp = ac.createGain();
-      preamp.gain.value = Math.pow(10, settings.preampDb / 20);
+        const preamp = ac.createGain();
+        preamp.gain.value = Math.pow(10, settings.preampDb / 20);
 
-      // Build EQ series
-      let tail: AudioNode = preamp;
-      for (const b of settings.bands) {
-        const f = ac.createBiquadFilter();
-        f.type = b.type || "peaking";
-        f.frequency.value = b.freq;
-        f.Q.value = b.q ?? 1.0;
-        f.gain.value = b.gain;
-        tail.connect(f);
-        tail = f;
+        // Build EQ series
+        let tail: AudioNode = preamp;
+        for (const b of settings.bands) {
+          const f = ac.createBiquadFilter();
+          f.type = b.type || "peaking";
+          f.frequency.value = b.freq;
+          f.Q.value = b.q ?? 1.0;
+          f.gain.value = b.gain;
+          tail.connect(f);
+          tail = f;
+        }
+
+        // Optionally add a compressor
+        if (settings.compressorEnabled || settings.loudnessNormalization) {
+          const comp = ac.createDynamicsCompressor();
+          comp.threshold.value = settings.compressor.threshold;
+          comp.knee.value = settings.compressor.knee;
+          comp.ratio.value = settings.compressor.ratio;
+          comp.attack.value = settings.compressor.attack;
+          comp.release.value = settings.compressor.release;
+          tail.connect(comp);
+          comp.connect(ac.destination);
+        } else {
+          tail.connect(ac.destination);
+        }
+
+        // Source routing
+        src.connect(panner);
+        panner.connect(preamp);
+
+        return src;
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("connectSource failed (likely due to DRM or context state):", e);
+        return null;
       }
-
-      // Optionally add a compressor
-      if (settings.compressorEnabled || settings.loudnessNormalization) {
-        const comp = ac.createDynamicsCompressor();
-        comp.threshold.value = settings.compressor.threshold;
-        comp.knee.value = settings.compressor.knee;
-        comp.ratio.value = settings.compressor.ratio;
-        comp.attack.value = settings.compressor.attack;
-        comp.release.value = settings.compressor.release;
-        tail.connect(comp);
-        comp.connect(ac.destination);
-      } else {
-        tail.connect(ac.destination);
-      }
-
-      // Source routing
-      src.connect(panner);
-      panner.connect(preamp);
-
-      return src;
-    } catch (e) {
-      // eslint-disable-next-line no-console
-      console.warn("connectSource failed (likely due to DRM or context state):", e);
-      return null;
-    }
-  };
+    },
+    [ensureContext, settings]
+  );
 
   const value = useMemo<AudioFXContextType>(
     () => ({
@@ -354,7 +357,7 @@ export const AudioFXProvider: React.FC<{ children: React.ReactNode }> = ({ child
       connectSource,
       audioContext: audioContextRef.current
     }),
-    [settings]
+    [settings, connectSource]
   );
 
   return <AudioFXContext.Provider value={value}>{children}</AudioFXContext.Provider>;
