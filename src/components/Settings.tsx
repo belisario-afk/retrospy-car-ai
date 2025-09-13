@@ -1,10 +1,12 @@
 import React from "react";
 import TTSController from "./TTSController";
+import AudioSettings from "./AudioSettings";
 
 const Settings: React.FC = () => {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl">Settings</h1>
+
       <section className="space-y-2">
         <h2 className="text-lg">Appearance</h2>
         <div className="text-sm opacity-80">
@@ -12,7 +14,11 @@ const Settings: React.FC = () => {
           accessibility tools. High contrast is preserved.
         </div>
       </section>
+
+      <AudioSettings />
+
       <TTSController />
+
       <section aria-labelledby="bt-guide" className="space-y-2">
         <h2 id="bt-guide" className="text-lg">
           Device Pairing (Bluetooth)
@@ -26,6 +32,7 @@ const Settings: React.FC = () => {
           </li>
         </ol>
       </section>
+
       <section className="space-y-2">
         <h2 className="text-lg">Debug</h2>
         <button

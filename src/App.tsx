@@ -8,6 +8,7 @@ import PrintableBezel from "./components/PrintableBezel";
 import { usePKCE } from "./hooks/usePKCE";
 import { getStoredToken } from "./lib/spotify/api";
 import { TTSProvider } from "./lib/tts";
+import { AudioFXProvider } from "./lib/audiofx";
 import { create } from "zustand";
 import classNames from "classnames";
 
@@ -57,13 +58,15 @@ const App: React.FC = () => {
   }, [authed, nav.route]);
 
   return (
-    <TTSProvider>
-      <div className={classNames("min-h-screen text-neon-green font-mono", "crt relative")}>
-        <div className="crt-scanline" aria-hidden="true"></div>
-        <AppShell onNavigate={(route) => nav.setRoute(route)} currentRoute={nav.route} />
-        <main className="double-din p-3 sm:p-4 md:p-6 mt-2">{content}</main>
-      </div>
-    </TTSProvider>
+    <AudioFXProvider>
+      <TTSProvider>
+        <div className={classNames("min-h-screen text-neon-green font-mono", "crt relative")}>
+          <div className="crt-scanline" aria-hidden="true"></div>
+          <AppShell onNavigate={(route) => nav.setRoute(route)} currentRoute={nav.route} />
+          <main className="double-din p-3 sm:p-4 md:p-6 mt-2">{content}</main>
+        </div>
+      </TTSProvider>
+    </AudioFXProvider>
   );
 };
 

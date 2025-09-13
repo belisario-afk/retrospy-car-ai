@@ -1,7 +1,24 @@
-import React from "react";
+import React, { useEffect } from "react";
 import MouthVisualizer from "./MouthVisualizer";
+import { useTTS } from "../lib/tts";
 
 const DashScreen: React.FC = () => {
+  const { speak, settings } = useTTS();
+
+  useEffect(() => {
+    // Greet once per session on Dash load
+    const key = "retrospy:greeted";
+    const has = sessionStorage.getItem(key) === "1";
+    if (!has) {
+      const t = setTimeout(() => {
+        const text = settings.greeting || "Welcome back Mister Belisario.";
+        void speak(text);
+        sessionStorage.setItem(key, "1");
+      }, 800);
+      return () => clearTimeout(t);
+    }
+  }, [speak, settings.greeting]);
+
   return (
     <div className="grid grid-rows-[1fr] gap-3">
       <div className="bg-black/30 border border-neon-dim rounded p-3 relative overflow-hidden">
