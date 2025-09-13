@@ -1,30 +1,10 @@
 import { useCallback, useEffect } from "react";
-import { exchangeCodeForToken } from "../lib/api";
 import { generateCodeChallenge, generateCodeVerifier } from "../lib/spotify/pkce";
+import { exchangeCodeForToken as spotifyExchangeCodeForToken, storeToken } from "../lib/spotify/api";
+import { CLIENT_ID, REDIRECT_URI } from "../config";
 
 const PKCE_VERIFIER_KEY = "pkce:verifier";
 const PKCE_STATE_KEY = "pkce:state";
-
-const TOKEN_KEY = "spotify:access_token";
-const REFRESH_TOKEN_KEY = "spotify:refresh_token";
-const EXPIRES_AT_KEY = "spotify:token_expires_at";
-
-function getRedirectUri(): string {
-  const fromEnv = process.env.REACT_APP_SPOTIFY_REDIRECT_URI;
-  if (fromEnv && fromEnv.length > 0) return fromEnv;
-
-  const publicUrl = process.env.PUBLIC_URL;
-  if (publicUrl) {
-    try {
-      const url = new URL(publicUrl);
-      return `${url.origin}${url.pathname.replace(/\/?$/, "")}/callback`;
-    } catch {
-      const basePath = publicUrl.replace(/\/?$/, "");
-      return `${window.location.origin}${basePath}/callback`;
-    }
-  }
-  return `${window.location.origin}/callback`;
-}
 
 function getBasePathFromPublicUrl(): string {
   const publicUrl = process.env.PUBLIC_URL;
@@ -42,7 +22,7 @@ function getBasePathFromPublicUrl(): string {
 function getDefaultScopes(): string[] {
   const raw = process.env.REACT_APP_SPOTIFY_SCOPES;
   if (raw && raw.trim().length > 0) {
-    return raw.split(/[,\s]+/).map(s => s.trim()).filter(Boolean);
+    return raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
   }
   // Reasonable defaults for playback + profile
   return [
@@ -57,15 +37,13 @@ function getDefaultScopes(): string[] {
 }
 
 export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
-  const clientId = process.env.REACT_APP_SPOTIFY_CLIENT_ID ?? "";
-  const redirectUri = getRedirectUri();
+  const clientId = CLIENT_ID; // from config
+  const redirectUri = REDIRECT_URI; // from config
 
   const login = useCallback(
     async (scopes: string[]) => {
       if (!clientId) {
-        console.error(
-          "REACT_APP_SPOTIFY_CLIENT_ID is missing. Set it in .env and rebuild. Aborting login."
-        );
+        console.error("REACT_APP_SPOTIFY_CLIENT_ID is missing. Set it in .env and rebuild. Aborting login.");
         alert("Spotify Client ID missing. Configure .env and rebuild.");
         return;
       }
@@ -134,36 +112,25 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
     }
 
     try {
-      const token = await exchangeCodeForToken({
-        code,
-        codeVerifier: verifier,
-        clientId,
-        redirectUri
-      });
+      const token = await spotifyExchangeCodeForToken(code, verifier);
+      // Persist using the same storage format the rest of the app expects
+      storeToken(token);
 
+      // Clear transient storage and query
       sessionStorage.removeItem(PKCE_VERIFIER_KEY);
       sessionStorage.removeItem(PKCE_STATE_KEY);
 
-      if (onAuthenticated) {
-        onAuthenticated(token.access_token);
-      } else {
-        try {
-          const expiresAt = Date.now() + token.expires_in * 1000;
-          localStorage.setItem(TOKEN_KEY, token.access_token);
-          if (token.refresh_token) localStorage.setItem(REFRESH_TOKEN_KEY, token.refresh_token);
-          localStorage.setItem(EXPIRES_AT_KEY, String(expiresAt));
-        } catch {
-          // ignore storage failures
-        }
-      }
-
+      // Clean the URL back to the app base path
       const clean = getBasePathFromPublicUrl();
       window.history.replaceState({}, document.title, clean);
+
+      if (onAuthenticated) onAuthenticated(token.access_token);
     } catch (err) {
       console.error("Token exchange failed", err);
     }
-  }, [clientId, onAuthenticated, redirectUri]);
+  }, [onAuthenticated]);
 
+  // Auto-handle callback on mount if present (keeps compatibility with old usage)
   useEffect(() => {
     if (isRedirectCallback()) {
       void handleRedirectCallback();
