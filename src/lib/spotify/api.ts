@@ -95,25 +95,24 @@ export async function apiFetch<T = unknown>(url: string, init?: RequestInit): Pr
     throw new Error(`Spotify API error ${res.status}: ${text}`);
   }
 
-  // 204 or empty/unknown body: don't attempt JSON
+  // Avoid JSON parsing when there is no body
   if (res.status === 204) return undefined as unknown as T;
   const contentLength = res.headers.get("content-length");
   if (contentLength === "0") return undefined as unknown as T;
-  const ct = res.headers.get("content-type") || "";
-  if (!ct.toLowerCase().includes("application/json")) {
-    // Try to read text for completeness; ignore value
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  if (!ct.includes("application/json")) {
     await res.text().catch(() => "");
     return undefined as unknown as T;
   }
 
-  // Normal JSON response
   return (await res.json()) as T;
 }
 
 export const SpotifyAPI = {
   me: (): Promise<CurrentUsersProfileResponse> => apiFetch("https://api.spotify.com/v1/me"),
 
-  devices: (): Promise<UserDevicesResponse> => apiFetch("https://api.spotify.com/v1/me/player/devices"),
+  devices: (): Promise<UserDevicesResponse> =>
+    apiFetch("https://api.spotify.com/v1/me/player/devices"),
 
   // Stable minimal shape via CurrentPlayback (avoids @types variance).
   playbackState: (): Promise<CurrentPlayback> => apiFetch("https://api.spotify.com/v1/me/player"),
@@ -160,9 +159,31 @@ export const SpotifyAPI = {
       `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${types}&limit=${limit}`
     ),
 
+  // List current user's playlists
   playlists: (limit = 20, offset = 0): Promise<ListOfCurrentUsersPlaylistsResponse> =>
     apiFetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}&offset=${offset}`),
 
+  // Back-compat alias for existing components
+  myPlaylists: (limit = 20, offset = 0): Promise<ListOfCurrentUsersPlaylistsResponse> =>
+    apiFetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}&offset=${offset}`),
+
+  // Get a full playlist by id
   playlist: (id: string): Promise<PlaylistFull> =>
-    apiFetch(`https://api.spotify.com/v1/playlists/${id}`)
+    apiFetch(`https://api.spotify.com/v1/playlists/${id}`),
+
+  // Create a playlist for a user
+  createPlaylist: (
+    userId: string,
+    name: string,
+    description = "",
+    isPublic = false
+  ): Promise<PlaylistFull> =>
+    apiFetch(`https://api.spotify.com/v1/users/${encodeURIComponent(userId)}/playlists`, {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        description,
+        public: isPublic
+      })
+    })
 };
