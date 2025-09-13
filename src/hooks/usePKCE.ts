@@ -24,7 +24,6 @@ function getDefaultScopes(): string[] {
   if (raw && raw.trim().length > 0) {
     return raw.split(/[,\s]+/).map((s) => s.trim()).filter(Boolean);
   }
-  // Reasonable defaults for playback + profile
   return [
     "user-read-email",
     "user-read-private",
@@ -37,13 +36,13 @@ function getDefaultScopes(): string[] {
 }
 
 export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
-  const clientId = CLIENT_ID; // from config
-  const redirectUri = REDIRECT_URI; // from config
+  const clientId = CLIENT_ID;
+  const redirectUri = REDIRECT_URI;
 
   const login = useCallback(
     async (scopes: string[]) => {
       if (!clientId) {
-        console.error("REACT_APP_SPOTIFY_CLIENT_ID is missing. Set it in .env and rebuild. Aborting login.");
+        console.error("REACT_APP_SPOTIFY_CLIENT_ID is missing. Set it in .env and rebuild.");
         alert("Spotify Client ID missing. Configure .env and rebuild.");
         return;
       }
@@ -70,7 +69,6 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
     [clientId, redirectUri]
   );
 
-  // Backwards-compatible alias that allows optional scopes
   const startLogin = useCallback(
     async (scopes?: string[]) => {
       const effectiveScopes = scopes && scopes.length ? scopes : getDefaultScopes();
@@ -113,14 +111,11 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
 
     try {
       const token = await spotifyExchangeCodeForToken(code, verifier);
-      // Persist using the same storage format the rest of the app expects
       storeToken(token);
 
-      // Clear transient storage and query
       sessionStorage.removeItem(PKCE_VERIFIER_KEY);
       sessionStorage.removeItem(PKCE_STATE_KEY);
 
-      // Clean the URL back to the app base path
       const clean = getBasePathFromPublicUrl();
       window.history.replaceState({}, document.title, clean);
 
@@ -130,7 +125,6 @@ export function usePKCE(onAuthenticated?: (accessToken: string) => void) {
     }
   }, [onAuthenticated]);
 
-  // Auto-handle callback on mount if present (keeps compatibility with old usage)
   useEffect(() => {
     if (isRedirectCallback()) {
       void handleRedirectCallback();

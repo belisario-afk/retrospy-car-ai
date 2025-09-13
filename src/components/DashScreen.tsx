@@ -12,7 +12,6 @@ const DashScreen: React.FC = () => {
               "repeating-linear-gradient(90deg, rgba(57,255,20,.03) 0 2px, transparent 2px 3px)"
           }}
         />
-        {/* Removed descriptive text and greeting header */}
         <MouthVisualizer />
       </div>
     </div>
