@@ -95,7 +95,6 @@ export async function apiFetch<T = unknown>(url: string, init?: RequestInit): Pr
     throw new Error(`Spotify API error ${res.status}: ${text}`);
   }
 
-  // Avoid JSON parsing when there is no body
   if (res.status === 204) return undefined as unknown as T;
   const contentLength = res.headers.get("content-length");
   if (contentLength === "0") return undefined as unknown as T;
@@ -114,7 +113,6 @@ export const SpotifyAPI = {
   devices: (): Promise<UserDevicesResponse> =>
     apiFetch("https://api.spotify.com/v1/me/player/devices"),
 
-  // Stable minimal shape via CurrentPlayback (avoids @types variance).
   playbackState: (): Promise<CurrentPlayback> => apiFetch("https://api.spotify.com/v1/me/player"),
 
   play: (body?: {
@@ -154,16 +152,19 @@ export const SpotifyAPI = {
       body: JSON.stringify({ device_ids: [device_id], play })
     }),
 
-  search: (q: string, types = "track,album,artist", limit = 10): Promise<SearchResponse> =>
-    apiFetch(
-      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${types}&limit=${limit}`
-    ),
+  // Accept string or string[] for types
+  search: (q: string, types: string | string[] = "track,album,artist", limit = 10): Promise<SearchResponse> => {
+    const t = Array.isArray(types) ? types.join(",") : types;
+    return apiFetch(
+      `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=${encodeURIComponent(t)}&limit=${limit}`
+    );
+  },
 
   // List current user's playlists
   playlists: (limit = 20, offset = 0): Promise<ListOfCurrentUsersPlaylistsResponse> =>
     apiFetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}&offset=${offset}`),
 
-  // Back-compat alias for existing components
+  // Back-compat alias
   myPlaylists: (limit = 20, offset = 0): Promise<ListOfCurrentUsersPlaylistsResponse> =>
     apiFetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}&offset=${offset}`),
 
@@ -185,5 +186,14 @@ export const SpotifyAPI = {
         description,
         public: isPublic
       })
-    })
+    }),
+
+  // Add track to queue (used in SearchBar)
+  queueAdd: (uri: string, device_id?: string): Promise<void> => {
+    const q = new URLSearchParams({ uri });
+    if (device_id) q.set("device_id", device_id);
+    return apiFetch<void>(`https://api.spotify.com/v1/me/player/queue?${q.toString()}`, {
+      method: "POST"
+    });
+  }
 };
