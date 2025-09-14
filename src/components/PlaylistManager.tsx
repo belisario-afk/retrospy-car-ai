@@ -8,6 +8,16 @@ import type {
   Device
 } from "../lib/spotify/types";
 
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return "Unknown error";
+  }
+}
+
 const PlaylistManager: React.FC<{
   fallbackDevices: Device[] | null;
 }> = ({ fallbackDevices }) => {
@@ -15,15 +25,19 @@ const PlaylistManager: React.FC<{
   const [loading, setLoading] = useState(false);
   const [newName, setNewName] = useState("");
   const [me, setMe] = useState<CurrentUsersProfileResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
+      setError(null);
       try {
         const meRes = await SpotifyAPI.me();
         setMe(meRes);
         const pls = await SpotifyAPI.myPlaylists(20);
         setPlaylists(pls);
+      } catch (e: unknown) {
+        setError(getErrorMessage(e) || "Failed to load playlists. Check authentication and scopes.");
       } finally {
         setLoading(false);
       }
@@ -59,6 +73,9 @@ const PlaylistManager: React.FC<{
           Devices: {fallbackDevices?.map((d) => d.name).join(", ") || "—"}
         </div>
       </div>
+
+      {error && <div className="mt-2 text-red-400 text-sm">{error}</div>}
+
       <div className="mt-2 flex gap-2">
         <input
           className="flex-1 bg-black/40 border border-neon-dim rounded px-2 py-1"
@@ -75,7 +92,9 @@ const PlaylistManager: React.FC<{
           Create
         </button>
       </div>
+
       {loading && <div className="mt-2 animate-pulse">Loading playlists…</div>}
+
       <div className="mt-3 max-h-64 overflow-auto space-y-2 pr-1">
         {playlists?.items?.map((pl: PlaylistSimplified) => (
           <div
@@ -111,7 +130,9 @@ const PlaylistManager: React.FC<{
             </div>
           </div>
         ))}
-        {!playlists?.items?.length && <div className="opacity-75 text-sm">No playlists found.</div>}
+        {!playlists?.items?.length && !loading && !error && (
+          <div className="opacity-75 text-sm">No playlists found.</div>
+        )}
       </div>
     </section>
   );

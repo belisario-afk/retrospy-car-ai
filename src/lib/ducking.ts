@@ -1,8 +1,7 @@
 // Simple Spotify volume ducking for TTS/prompts.
-// Note: Web API doesn't expose current volume; we restore to a configured default.
-// You can later wire this to your player SDK to capture the true current volume.
+// Prefer SDK volume when available to avoid Web API 403s.
 
-import { SpotifyAPI } from "./spotify/api";
+import { setVolumeSmart } from "./spotify/webPlaybackWrapper";
 
 type DuckOptions = {
   targetPercent?: number;   // volume percent during duck (0-100)
@@ -27,16 +26,16 @@ async function rampVolume(from: number, to: number, durationMs: number, steps = 
   const start = clamped(from);
   const end = clamped(to);
   if (durationMs <= 0 || steps <= 1) {
-    await SpotifyAPI.setVolume(end);
+    await setVolumeSmart(end);
     return;
   }
   const stepTime = Math.max(10, Math.round(durationMs / steps));
   for (let i = 1; i <= steps; i++) {
     const v = Math.round(start + ((end - start) * i) / steps);
     try {
-      await SpotifyAPI.setVolume(v);
+      await setVolumeSmart(v);
     } catch {
-      // If user switched devices, this may fail; continue best-effort
+      // If user switched devices or volume is not controllable, stop ramp
       break;
     }
     await sleep(stepTime);
@@ -48,25 +47,21 @@ export async function duckDuring<T>(
   opts: DuckOptions = {}
 ): Promise<T> {
   const { targetPercent, restorePercent, rampMs, holdMs } = { ...DEFAULTS, ...opts };
+  const startVol = restorePercent; // best effort default; SDK path doesn't expose current volume
+  const startedAt = Date.now();
 
-  try {
-    // Best-effort: ramp down to duck target
-    await rampVolume(restorePercent, targetPercent, rampMs);
-  } catch {
-    // Ignore volume API failures; still run the action
-  }
+  // Duck down
+  await rampVolume(startVol, targetPercent, rampMs);
 
-  const start = Date.now();
+  let result: T;
   try {
-    const result = await action();
-    const elapsed = Date.now() - start;
-    if (holdMs > elapsed) await sleep(holdMs - elapsed);
-    return result;
+    result = await action();
   } finally {
-    try {
-      await rampVolume(targetPercent, restorePercent, rampMs);
-    } catch {
-      // Ignore restore failures (e.g., device changed mid-duck)
-    }
+    const spent = Date.now() - startedAt;
+    const wait = Math.max(0, holdMs - spent);
+    if (wait > 0) await sleep(wait);
+    // Restore
+    await rampVolume(targetPercent, restorePercent, rampMs);
   }
+  return result;
 }

@@ -5,7 +5,7 @@ import type { UserDevicesResponse } from "./types";
 /**
  * Wrapper to load and manage Spotify Web Playback SDK.
  * - Detects Premium requirement and initialization errors.
- * - Exposes a minimal control API + current state subscription.
+ * - Exposes volume helpers for SDK-first control to avoid Web API 403s.
  */
 
 export type PlaybackState = Spotify.PlaybackState | null;
@@ -20,6 +20,10 @@ type InitResult =
 
 let sdkLoaded = false;
 let sdkLoadingPromise: Promise<void> | null = null;
+
+// Current player/device cache
+let currentPlayer: Spotify.Player | null = null;
+let currentDeviceId: string | null = null;
 
 function loadSdk(): Promise<void> {
   if (sdkLoaded) return Promise.resolve();
@@ -62,7 +66,7 @@ export async function initWebPlayback(): Promise<InitResult> {
 
   return new Promise((resolve) => {
     const player = new (window as any).Spotify.Player({
-      name: process.env.REACT_APP_APP_NAME || "RetroSpy Car AI",
+      name: (import.meta as any).env?.VITE_APP_NAME || (process as any)?.env?.REACT_APP_APP_NAME || "RetroSpy Car AI",
       getOAuthToken: async (cb: (token: string) => void) => {
         // Refresh token if needed
         let token = getStoredToken();
@@ -77,11 +81,16 @@ export async function initWebPlayback(): Promise<InitResult> {
     let resolved = false;
 
     player.addListener("ready", ({ device_id }: PlayerReady) => {
+      currentPlayer = player;
+      currentDeviceId = device_id;
       resolved = true;
       resolve({ ok: true, deviceId: device_id, player });
     });
 
     player.addListener("not_ready", ({ device_id }: PlayerReady) => {
+      if (currentDeviceId === device_id) {
+        // mark device as stale
+      }
       console.warn("Device ID has gone offline", device_id);
     });
 
@@ -117,6 +126,44 @@ export async function initWebPlayback(): Promise<InitResult> {
 
     player.connect();
   });
+}
+
+export function getCurrentPlayer(): Spotify.Player | null {
+  return currentPlayer;
+}
+
+export function getCurrentDeviceId(): string | null {
+  return currentDeviceId;
+}
+
+export async function isSdkActiveDevice(): Promise<boolean> {
+  if (!currentDeviceId) return false;
+  try {
+    const st = await SpotifyAPI.playbackState();
+    const activeId = (st as any)?.device?.id || null;
+    return Boolean(activeId && activeId === currentDeviceId);
+  } catch {
+    return false;
+  }
+}
+
+export async function setPlayerVolume(percent: number): Promise<void> {
+  const player = getCurrentPlayer();
+  if (!player) throw new Error("SDK player not available");
+  const vol = Math.max(0, Math.min(1, percent / 100));
+  await player.setVolume(vol);
+}
+
+/**
+ * Prefer SDK volume when the SDK device is active (avoids Web API 403).
+ * Falls back to Web API setVolume if SDK is not available/active.
+ */
+export async function setVolumeSmart(percent: number): Promise<void> {
+  if (await isSdkActiveDevice()) {
+    await setPlayerVolume(percent);
+  } else {
+    await SpotifyAPI.setVolume(percent);
+  }
 }
 
 export async function transferToDevice(deviceId: string): Promise<void> {

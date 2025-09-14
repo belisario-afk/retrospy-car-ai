@@ -146,7 +146,7 @@ export const SpotifyAPI = {
       method: "PUT"
     }),
 
-  // NEW: seek to a position in ms (optional device_id)
+  // Seek to a position in ms (optional device_id)
   seek: (positionMs: number, device_id?: string): Promise<void> => {
     const q = new URLSearchParams({ position_ms: String(positionMs) });
     if (device_id) q.set("device_id", device_id);

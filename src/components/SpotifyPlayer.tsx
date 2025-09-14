@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SpotifyAPI } from "../lib/spotify/api";
+import { setVolumeSmart } from "../lib/spotify/webPlaybackWrapper";
 
 type Track = {
   id?: string;
@@ -218,14 +219,14 @@ const SpotifyPlayer: React.FC = () => {
     }
   }, [fetchState, playback.isPlaying]);
 
-  // Volume control (gentle throttle)
+  // Volume control (gentle throttle). Prefer SDK volume to avoid 403s.
   const applyVolume = useCallback((v: number) => {
     if (applyVolTimer.current !== null) {
       clearTimeout(applyVolTimer.current);
       applyVolTimer.current = null;
     }
     applyVolTimer.current = window.setTimeout(() => {
-      void SpotifyAPI.setVolume(v).catch(() => {
+      void setVolumeSmart(v).catch(() => {
         // ignore volume set errors
       });
     }, 100);
