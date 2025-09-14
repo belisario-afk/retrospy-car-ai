@@ -1,20 +1,57 @@
 import React, { useEffect, useRef } from "react";
-import { applyThemeToDocument, useTheme } from "../lib/theme";
+import { useTheme } from "../lib/theme";
+
+function hexToHue(hex: string): number {
+  const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!res) return 110;
+  const r = parseInt(res[1], 16) / 255;
+  const g = parseInt(res[2], 16) / 255;
+  const b = parseInt(res[3], 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  if (max === min) {
+    h = 0;
+  } else if (max === r) {
+    h = (60 * ((g - b) / (max - min)) + 360) % 360;
+  } else if (max === g) {
+    h = 60 * ((b - r) / (max - min)) + 120;
+  } else {
+    h = 60 * ((r - g) / (max - min)) + 240;
+  }
+  return Math.round(h);
+}
 
 const ThemeController: React.FC = () => {
-  const theme = useTheme();
+  const {
+    mode,
+    animated,
+    rainbowSpeed,
+    background,
+    foreground,
+    accent,
+    glow
+  } = useTheme();
+
   const rafRef = useRef<number | null>(null);
-  const hueRef = useRef<number>(Number(getComputedStyle(document.documentElement).getPropertyValue("--accent-hue")) || 110);
+  const hueRef = useRef<number>(hexToHue(accent));
   const lastTsRef = useRef<number>(0);
 
-  // Apply static variables
+  // Apply static variables (no object refs in deps; only primitives)
   useEffect(() => {
-    applyThemeToDocument(theme);
-  }, [theme.background, theme.foreground, theme.accent, theme.glow]);
+    const root = document.documentElement;
+    root.style.setProperty("--bg", background);
+    root.style.setProperty("--fg", foreground);
+    root.style.setProperty("--accent", accent);
+    const hue = hexToHue(accent);
+    root.style.setProperty("--accent-hue", String(hue));
+    root.style.setProperty("--accent-dim", `color-mix(in oklab, ${accent} 35%, transparent)`);
+    root.style.setProperty("--glow", String(glow));
+  }, [background, foreground, accent, glow]);
 
   // Rainbow animation (adjusts --accent via hue rotate)
   useEffect(() => {
-    if (theme.mode !== "rainbow" || !theme.animated) {
+    if (mode !== "rainbow" || !animated) {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -23,15 +60,15 @@ const ThemeController: React.FC = () => {
     }
     const tick = (ts: number) => {
       const last = lastTsRef.current || ts;
-      const dt = (ts - last) / 1000; // sec
+      const dt = (ts - last) / 1000;
       lastTsRef.current = ts;
-      hueRef.current = (hueRef.current + theme.rainbowSpeed * dt) % 360;
+      hueRef.current = (hueRef.current + rainbowSpeed * dt) % 360;
 
       const h = hueRef.current;
-      const accent = `hsl(${Math.round(h)} 90% 60%)`;
+      const dynAccent = `hsl(${Math.round(h)} 90% 60%)`;
       const root = document.documentElement;
-      root.style.setProperty("--accent", accent);
-      root.style.setProperty("--accent-dim", `color-mix(in oklab, ${accent} 35%, transparent)`);
+      root.style.setProperty("--accent", dynAccent);
+      root.style.setProperty("--accent-dim", `color-mix(in oklab, ${dynAccent} 35%, transparent)`);
       root.style.setProperty("--accent-hue", String(h.toFixed(1)));
 
       rafRef.current = requestAnimationFrame(tick);
@@ -41,7 +78,7 @@ const ThemeController: React.FC = () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     };
-  }, [theme.mode, theme.animated, theme.rainbowSpeed]);
+  }, [mode, animated, rainbowSpeed]);
 
   return null;
 };
