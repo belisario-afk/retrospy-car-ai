@@ -240,14 +240,7 @@ const SpotifyPlayer: React.FC = () => {
     [applyVolume]
   );
 
-  // Seek handling with multiple wrapper-name fallbacks
-  type SeekLikeAPI = {
-    seek?: (positionMs: number) => Promise<unknown>;
-    seekToPosition?: (positionMs: number) => Promise<unknown>;
-    seekPosition?: (positionMs: number) => Promise<unknown>;
-    play: (opts?: { position_ms?: number }) => Promise<unknown>;
-  };
-
+  // Seek handling
   const onSeekStart = useCallback(() => {
     setSeeking(true);
     setSeekPos(livePos);
@@ -266,17 +259,7 @@ const SpotifyPlayer: React.FC = () => {
   const onSeekCommit = useCallback(async () => {
     setSeeking(false);
     try {
-      const api = SpotifyAPI as unknown as SeekLikeAPI;
-      if (typeof api.seek === "function") {
-        await api.seek(seekPos);
-      } else if (typeof api.seekToPosition === "function") {
-        await api.seekToPosition(seekPos);
-      } else if (typeof api.seekPosition === "function") {
-        await api.seekPosition(seekPos);
-      } else {
-        // Fallback: use play with position_ms
-        await api.play({ position_ms: seekPos });
-      }
+      await SpotifyAPI.seek(seekPos);
       await fetchState();
     } catch {
       // ignore seek errors

@@ -146,6 +146,15 @@ export const SpotifyAPI = {
       method: "PUT"
     }),
 
+  // NEW: seek to a position in ms (optional device_id)
+  seek: (positionMs: number, device_id?: string): Promise<void> => {
+    const q = new URLSearchParams({ position_ms: String(positionMs) });
+    if (device_id) q.set("device_id", device_id);
+    return apiFetch<void>(`https://api.spotify.com/v1/me/player/seek?${q.toString()}`, {
+      method: "PUT"
+    });
+  },
+
   transferPlayback: (device_id: string, play = true): Promise<void> =>
     apiFetch<void>("https://api.spotify.com/v1/me/player", {
       method: "PUT",
