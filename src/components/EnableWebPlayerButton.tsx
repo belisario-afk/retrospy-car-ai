@@ -1,18 +1,18 @@
+// Optional helper. Safe to keep or remove from your layout.
+// No layout changes are required as Play button now initializes the SDK on demand.
 import React from "react";
 import { initWebPlayback, transferToDevice } from "../lib/spotify/webPlaybackWrapper";
 import { SpotifyAPI } from "../lib/spotify/api";
 
 const EnableWebPlayerButton: React.FC = () => {
   const onEnable = async () => {
-    // Must be user-initiated to satisfy autoplay policies
     const res = await initWebPlayback();
     if (res.ok) {
       try {
         await transferToDevice(res.deviceId);
-        // Optional: start/resume playback on this device
         await SpotifyAPI.play({ device_id: res.deviceId });
-      } catch (e) {
-        console.warn("Transfer/play failed", e);
+      } catch {
+        // non-fatal
       }
       alert("Browser player enabled. This device is now active in Spotify.");
     } else {
@@ -26,6 +26,7 @@ const EnableWebPlayerButton: React.FC = () => {
       className="px-3 py-1 border border-neon-dim rounded hover:bg-neon-green/10"
       aria-label="Enable in-browser Spotify player"
       title="Enable in-browser Spotify player"
+      type="button"
     >
       Enable in‑browser player
     </button>

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SpotifyAPI } from "../lib/spotify/api";
-import { setVolumeSmart } from "../lib/spotify/webPlaybackWrapper";
+import { initWebPlayback, transferToDevice, isSdkActiveDevice, getCurrentDeviceId, setVolumeSmart } from "../lib/spotify/webPlaybackWrapper";
 
 type Track = {
   id?: string;
@@ -205,19 +205,39 @@ const SpotifyPlayer: React.FC = () => {
     }
   }, [fetchState]);
 
+  const ensureSdkActiveOnUserGesture = useCallback(async () => {
+    // If the SDK device is not active, try to init + transfer ON USER GESTURE (this call is triggered by Play button)
+    const alreadyActive = await isSdkActiveDevice();
+    if (alreadyActive) return;
+
+    const init = await initWebPlayback();
+    if (!init.ok) {
+      // If SDK can't init (e.g., non-Premium), just return; API control of other devices may still work
+      return;
+    }
+    try {
+      await transferToDevice(init.deviceId);
+    } catch {
+      // non-fatal
+    }
+  }, []);
+
   const doToggle = useCallback(async () => {
     vibrate();
     try {
       if (playback.isPlaying) {
         await SpotifyAPI.pause();
       } else {
+        // Ensure SDK device is active (if available) before trying to play
+        await ensureSdkActiveOnUserGesture();
+        // Try play; if no active device exists, this may fail (we avoid crashing)
         await SpotifyAPI.play();
       }
       await fetchState();
     } catch {
       // ignore toggle failures
     }
-  }, [fetchState, playback.isPlaying]);
+  }, [fetchState, playback.isPlaying, ensureSdkActiveOnUserGesture]);
 
   // Volume control (gentle throttle). Prefer SDK volume to avoid 403s.
   const applyVolume = useCallback((v: number) => {
@@ -260,7 +280,8 @@ const SpotifyPlayer: React.FC = () => {
   const onSeekCommit = useCallback(async () => {
     setSeeking(false);
     try {
-      await SpotifyAPI.seek(seekPos);
+      // If we know SDK device id, you could pass device_id to target it; API will fall back to active device.
+      await SpotifyAPI.seek(seekPos, getCurrentDeviceId() || undefined);
       await fetchState();
     } catch {
       // ignore seek errors
@@ -300,7 +321,7 @@ const SpotifyPlayer: React.FC = () => {
         {/* Album art */}
         <div className="relative aspect-square rounded overflow-hidden border border-neon-dim bg-black/50">
           {art ? (
-            <img src={art} alt="" className="w-full h-full object-cover" draggable={false} />
+            <img src={art} alt="" className="w-full h-full object-cover" draggable={false} loading="lazy" />
           ) : (
             <div className="w-full h-full grid place-items-center text-xs opacity-60">No art</div>
           )}

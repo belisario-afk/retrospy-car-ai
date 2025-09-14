@@ -3,9 +3,10 @@ import { getStoredToken, isTokenExpired, refreshAccessToken, SpotifyAPI } from "
 import type { UserDevicesResponse } from "./types";
 
 /**
- * Wrapper to load and manage Spotify Web Playback SDK.
- * - Detects Premium requirement and initialization errors.
- * - Exposes volume helpers for SDK-first control to avoid Web API 403s.
+ * Spotify Web Playback SDK helper.
+ * - Loads SDK correctly (defines onSpotifyWebPlaybackSDKReady before injecting the script).
+ * - Avoids `process is not defined` by not referencing process at runtime.
+ * - Provides SDK-first volume control to avoid 403s from the Web API.
  */
 
 export type PlaybackState = Spotify.PlaybackState | null;
@@ -28,21 +29,21 @@ let currentDeviceId: string | null = null;
 function loadSdk(): Promise<void> {
   if (sdkLoaded) return Promise.resolve();
   if (sdkLoadingPromise) return sdkLoadingPromise;
+
   sdkLoadingPromise = new Promise<void>((resolve, reject) => {
+    // Define the global callback BEFORE loading the script to avoid "onSpotifyWebPlaybackSDKReady is not defined"
+    (window as any).onSpotifyWebPlaybackSDKReady = () => {
+      sdkLoaded = true;
+      resolve();
+    };
+
     const script = document.createElement("script");
     script.src = "https://sdk.scdn.co/spotify-player.js";
     script.async = true;
-    script.onload = () => {
-      resolve();
-    };
     script.onerror = (e) => reject(e);
     document.body.appendChild(script);
-  }).then(() => {
-    // global callback fired by SDK
-    (window as any).onSpotifyWebPlaybackSDKReady = () => {
-      sdkLoaded = true;
-    };
   });
+
   return sdkLoadingPromise;
 }
 
@@ -64,9 +65,12 @@ export async function initWebPlayback(): Promise<InitResult> {
     };
   }
 
+  // Avoid runtime env references that may not exist (Vite/CRA differences)
+  const appName = "RetroSpy Car AI";
+
   return new Promise((resolve) => {
     const player = new (window as any).Spotify.Player({
-      name: (import.meta as any).env?.VITE_APP_NAME || (process as any)?.env?.REACT_APP_APP_NAME || "RetroSpy Car AI",
+      name: appName,
       getOAuthToken: async (cb: (token: string) => void) => {
         // Refresh token if needed
         let token = getStoredToken();
@@ -89,7 +93,7 @@ export async function initWebPlayback(): Promise<InitResult> {
 
     player.addListener("not_ready", ({ device_id }: PlayerReady) => {
       if (currentDeviceId === device_id) {
-        // mark device as stale
+        // mark device as stale if needed
       }
       console.warn("Device ID has gone offline", device_id);
     });
