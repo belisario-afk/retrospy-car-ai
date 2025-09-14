@@ -12,6 +12,7 @@ import { AudioFXProvider } from "./lib/audiofx";
 import SpeedLoudnessController from "./components/SpeedLoudnessController";
 import AndroidOptimizeController from "./components/AndroidOptimizeController";
 import ThemeController from "./components/ThemeController";
+import Knob3D from "./components/Knob3D";
 import { create } from "zustand";
 import classNames from "classnames";
 import "./styles/theme-vars.css";
@@ -30,7 +31,6 @@ const App: React.FC = () => {
   const nav = useNav();
 
   useEffect(() => {
-    // Detect PKCE redirect callback
     if (isRedirectCallback()) {
       nav.setRoute("callback");
       handleRedirectCallback().then(
@@ -55,8 +55,18 @@ const App: React.FC = () => {
     if (nav.route === "bezel") return <PrintableBezel />;
     return (
       <>
-        <SpotifyPlayer />
-        <DashScreen />
+        {/* Top row: Player + Knob side by side */}
+        <div className="grid grid-cols-1 md:grid-cols-[1fr,240px] gap-3 items-start">
+          <SpotifyPlayer />
+          <div className="md:sticky md:top-16 self-start">
+            <Knob3D label="Volume" />
+          </div>
+        </div>
+
+        {/* Second row: rest of dash (visualizer, etc.) */}
+        <div className="mt-3">
+          <DashScreen />
+        </div>
       </>
     );
   }, [authed, nav.route]);
@@ -67,7 +77,10 @@ const App: React.FC = () => {
         <AndroidOptimizeController />
         <SpeedLoudnessController />
         <ThemeController />
-        <div className={classNames("min-h-screen text-neon-green font-mono", "crt relative")} style={{ background: "var(--bg)", color: "var(--fg)" }}>
+        <div
+          className={classNames("min-h-screen font-mono", "crt relative")}
+          style={{ background: "var(--bg)", color: "var(--fg)" }}
+        >
           <div className="crt-scanline" aria-hidden="true"></div>
           <AppShell onNavigate={(route) => nav.setRoute(route)} currentRoute={nav.route} />
           <main className="double-din p-3 sm:p-4 md:p-6 mt-2">{content}</main>

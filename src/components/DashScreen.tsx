@@ -2,7 +2,6 @@ import React, { useEffect } from "react";
 import MouthVisualizer from "./MouthVisualizer";
 import { useTTS } from "../lib/tts";
 import { duckDuring } from "../lib/ducking";
-import Knob3D from "./Knob3D";
 
 const DashScreen: React.FC = () => {
   const { speak, settings } = useTTS();
@@ -14,7 +13,6 @@ const DashScreen: React.FC = () => {
     if (!has) {
       const t = setTimeout(() => {
         const text = settings.greeting || "Welcome back Mister Belisario.";
-        // Duck Spotify during TTS so the greeting is crystal clear
         void duckDuring(() => speak(text), { targetPercent: 25, restorePercent: 65, rampMs: 250 });
         sessionStorage.setItem(key, "1");
       }, 800);
@@ -23,21 +21,15 @@ const DashScreen: React.FC = () => {
   }, [speak, settings.greeting]);
 
   return (
-    <div className="grid grid-rows-[auto,1fr] gap-3">
-      <div className="bg-black/30 border border-neon-dim rounded p-3 relative overflow-hidden">
-        <div
-          className="absolute inset-0 pointer-events-none opacity-20"
-          style={{
-            background:
-              "repeating-linear-gradient(90deg, color-mix(in oklab, var(--accent) 15%, transparent) 0 2px, transparent 2px 3px)"
-          }}
-        />
-        <MouthVisualizer />
-      </div>
-
-      <div className="flex items-center justify-center">
-        <Knob3D label="Volume" />
-      </div>
+    <div className="bg-black/30 border border-neon-dim rounded p-3 relative overflow-hidden">
+      <div
+        className="absolute inset-0 pointer-events-none opacity-20"
+        style={{
+          background:
+            "repeating-linear-gradient(90deg, color-mix(in oklab, var(--accent) 15%, transparent) 0 2px, transparent 2px 3px)"
+        }}
+      />
+      <MouthVisualizer />
     </div>
   );
 };

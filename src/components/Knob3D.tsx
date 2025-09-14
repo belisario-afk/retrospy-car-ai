@@ -14,21 +14,35 @@ function clamp(n: number, min: number, max: number) {
 const HAPTIC_STEP = 5; // vibrate on every 5% change
 const MIN_ANGLE = -130;
 const MAX_ANGLE = 130;
+const HAPTIC_PULSE_MS = 20;
+
+function vibrate(pattern: number | number[]) {
+  try {
+    if ("vibrate" in navigator) {
+      navigator.vibrate?.(pattern);
+    }
+  } catch {
+    // ignore
+  }
+}
 
 const Knob3D: React.FC<Props> = ({ initial = 60, onChangePercent, label = "Volume" }) => {
   const [value, setValue] = useState<number>(clamp(initial, 0, 100));
   const [dragging, setDragging] = useState<boolean>(false);
   const knobRef = useRef<HTMLDivElement | null>(null);
   const lastTickRef = useRef<number>(Math.round(initial / HAPTIC_STEP));
+  const lastAppliedRef = useRef<number>(initial);
 
-  // Throttled Spotify volume apply
-  const applyRef = useRef<number | null>(null);
+  // Throttled Spotify volume apply (gentle)
+  const applyTimer = useRef<number | null>(null);
   const pendingRef = useRef<number | null>(null);
+
   const flush = useCallback(() => {
-    applyRef.current = null;
+    applyTimer.current = null;
     const v = pendingRef.current;
     if (v == null) return;
     pendingRef.current = null;
+    lastAppliedRef.current = v;
     void SpotifyAPI.setVolume(v).catch(() => {});
     onChangePercent?.(v);
   }, [onChangePercent]);
@@ -36,24 +50,11 @@ const Knob3D: React.FC<Props> = ({ initial = 60, onChangePercent, label = "Volum
   const scheduleApply = useCallback(
     (v: number) => {
       pendingRef.current = v;
-      if (applyRef.current === null) {
-        applyRef.current = window.setTimeout(flush, 120); // gentle throttle
+      if (applyTimer.current === null) {
+        applyTimer.current = window.setTimeout(flush, 100);
       }
     },
     [flush]
-  );
-
-  const vibrateTick = useCallback(
-    (v: number) => {
-      const tick = Math.round(v / HAPTIC_STEP);
-      if (tick !== lastTickRef.current) {
-        lastTickRef.current = tick;
-        if ("vibrate" in navigator) {
-          navigator.vibrate?.(10);
-        }
-      }
-    },
-    []
   );
 
   const angleFromValue = (v: number) => MIN_ANGLE + ((MAX_ANGLE - MIN_ANGLE) * v) / 100;
@@ -73,20 +74,42 @@ const Knob3D: React.FC<Props> = ({ initial = 60, onChangePercent, label = "Volum
     return clamp(Math.round(val), 0, 100);
   };
 
+  const handleHapticTick = (v: number, prime = false) => {
+    if (prime) {
+      vibrate(HAPTIC_PULSE_MS);
+      return;
+    }
+    const tick = Math.round(v / HAPTIC_STEP);
+    if (tick !== lastTickRef.current) {
+      lastTickRef.current = tick;
+      vibrate(HAPTIC_PULSE_MS);
+    }
+  };
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault(); // stop page gestures
     setDragging(true);
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    // Prime haptic so users feel it immediately
+    handleHapticTick(value, true);
   };
+
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
+    e.preventDefault(); // stop page scroll while dragging
     const v = valueFromPoint(e.clientX, e.clientY);
+    if (v === value) return;
     setValue(v);
     scheduleApply(v);
-    vibrateTick(v);
+    handleHapticTick(v);
   };
+
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
     setDragging(false);
     (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+    // Ensure final value is applied
+    scheduleApply(value);
   };
 
   const onWheel = (e: React.WheelEvent<HTMLDivElement>) => {
@@ -95,7 +118,7 @@ const Knob3D: React.FC<Props> = ({ initial = 60, onChangePercent, label = "Volum
     const v = clamp(value + delta, 0, 100);
     setValue(v);
     scheduleApply(v);
-    vibrateTick(v);
+    handleHapticTick(v);
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -103,27 +126,32 @@ const Knob3D: React.FC<Props> = ({ initial = 60, onChangePercent, label = "Volum
       const v = clamp(value + 1, 0, 100);
       setValue(v);
       scheduleApply(v);
-      vibrateTick(v);
+      handleHapticTick(v);
     } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
       const v = clamp(value - 1, 0, 100);
       setValue(v);
       scheduleApply(v);
-      vibrateTick(v);
+      handleHapticTick(v);
     } else if (e.key === "Home") {
       setValue(0);
       scheduleApply(0);
-      vibrateTick(0);
+      handleHapticTick(0);
     } else if (e.key === "End") {
       setValue(100);
       scheduleApply(100);
-      vibrateTick(100);
+      handleHapticTick(100);
     }
   };
 
-  // Sync label for ARIA
+  // Cleanup timer on unmount
   useEffect(() => {
-    // no-op, value drives render
-  }, [value]);
+    return () => {
+      if (applyTimer.current !== null) {
+        clearTimeout(applyTimer.current);
+        applyTimer.current = null;
+      }
+    };
+  }, []);
 
   const angle = angleFromValue(value);
 
@@ -133,9 +161,12 @@ const Knob3D: React.FC<Props> = ({ initial = 60, onChangePercent, label = "Volum
         ref={knobRef}
         className="relative select-none"
         style={{
-          width: 120,
-          height: 120,
-          perspective: 600
+          width: 140,
+          height: 140,
+          perspective: 600,
+          // Prevent page from moving during interaction (Android)
+          touchAction: "none",
+          overscrollBehavior: "contain"
         }}
       >
         <div
@@ -144,6 +175,7 @@ const Knob3D: React.FC<Props> = ({ initial = 60, onChangePercent, label = "Volum
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={value}
+          aria-orientation="vertical"
           tabIndex={0}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -154,7 +186,9 @@ const Knob3D: React.FC<Props> = ({ initial = 60, onChangePercent, label = "Volum
           style={{
             background: `conic-gradient(from 225deg, var(--accent) ${value}%, #202020 ${value}% 100%)`,
             boxShadow: `inset 0 2px 10px rgba(255,255,255,.05), inset 0 -6px 14px rgba(0,0,0,.6), 0 0 ${12 * (1 + (value / 100) * 0.5)}px color-mix(in oklab, var(--accent) 35%, transparent)`,
-            border: "1px solid var(--accent-dim)"
+            border: "1px solid var(--accent-dim)",
+            cursor: dragging ? "grabbing" : "grab",
+            userSelect: "none"
           }}
         >
           <div
