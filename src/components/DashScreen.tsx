@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import MouthVisualizer from "./MouthVisualizer";
 import { useTTS } from "../lib/tts";
+import { duckDuring } from "../lib/ducking";
 
 const DashScreen: React.FC = () => {
   const { speak, settings } = useTTS();
@@ -12,7 +13,8 @@ const DashScreen: React.FC = () => {
     if (!has) {
       const t = setTimeout(() => {
         const text = settings.greeting || "Welcome back Mister Belisario.";
-        void speak(text);
+        // Duck Spotify during TTS so the greeting is crystal clear
+        void duckDuring(() => speak(text), { targetPercent: 25, restorePercent: 65, rampMs: 250 });
         sessionStorage.setItem(key, "1");
       }, 800);
       return () => clearTimeout(t);

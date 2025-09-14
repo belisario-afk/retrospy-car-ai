@@ -1,6 +1,8 @@
 import React from "react";
 import TTSController from "./TTSController";
 import AudioSettings from "./AudioSettings";
+import LoudnessSettings from "./LoudnessSettings";
+import DeviceOptimization from "./DeviceOptimization";
 
 const Settings: React.FC = () => {
   return (
@@ -14,6 +16,10 @@ const Settings: React.FC = () => {
           accessibility tools. High contrast is preserved.
         </div>
       </section>
+
+      <LoudnessSettings />
+
+      <DeviceOptimization />
 
       <AudioSettings />
 
