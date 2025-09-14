@@ -11,8 +11,10 @@ import { TTSProvider } from "./lib/tts";
 import { AudioFXProvider } from "./lib/audiofx";
 import SpeedLoudnessController from "./components/SpeedLoudnessController";
 import AndroidOptimizeController from "./components/AndroidOptimizeController";
+import ThemeController from "./components/ThemeController";
 import { create } from "zustand";
 import classNames from "classnames";
+import "./styles/theme-vars.css";
 
 type Route = "dash" | "settings" | "bezel" | "callback" | "connect";
 
@@ -62,14 +64,15 @@ const App: React.FC = () => {
   return (
     <AudioFXProvider>
       <TTSProvider>
+        <AndroidOptimizeController />
         <SpeedLoudnessController />
-        <div className={classNames("min-h-screen text-neon-green font-mono", "crt relative")}>
+        <ThemeController />
+        <div className={classNames("min-h-screen text-neon-green font-mono", "crt relative")} style={{ background: "var(--bg)", color: "var(--fg)" }}>
           <div className="crt-scanline" aria-hidden="true"></div>
           <AppShell onNavigate={(route) => nav.setRoute(route)} currentRoute={nav.route} />
           <main className="double-din p-3 sm:p-4 md:p-6 mt-2">{content}</main>
         </div>
       </TTSProvider>
-   <AndroidOptimizeController />
     </AudioFXProvider>
   );
 };

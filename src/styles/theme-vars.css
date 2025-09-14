@@ -1,0 +1,29 @@
+/* Global theme variables and overrides for existing "neon" classes */
+
+:root {
+  --bg: #000000;
+  --fg: #e6ffe6;
+  --accent: #39ff14;
+  --accent-dim: rgba(57, 255, 20, 0.35);
+  --glow: 0.75; /* 0..1 */
+  --accent-hue: 110; /* default neon green hue */
+}
+
+/* Override key utility classes used across the app */
+.text-neon-green {
+  color: var(--accent) !important;
+}
+.border-neon-dim {
+  border-color: var(--accent-dim) !important;
+}
+.drop-shadow-neon {
+  filter: drop-shadow(0 0 calc(8px * var(--glow)) color-mix(in oklab, var(--accent) 60%, transparent));
+}
+
+/* Optional helpers if you want to use them in future components */
+.accent-ring {
+  box-shadow: 0 0 calc(12px * var(--glow)) 0 color-mix(in oklab, var(--accent) 60%, transparent);
+}
+.accent-bg-soft {
+  background: color-mix(in oklab, var(--accent) 12%, black);
+}
