@@ -10,7 +10,31 @@ export type ThemePresetKey =
   | "Cyber Purple"
   | "RGB Rainbow";
 
+export type BgEffect = "none" | "chaser" | "stars" | "sunset";
+
+export type BgChaser = {
+  lineCount: number; // 1..200
+  speed: number; // px/s dash movement
+  thickness: number; // px
+  angleDeg: number; // -180..180
+  gap: number; // px gap between dashes
+  glow: number; // 0..1 extra blur/glow
+};
+
+export type BgStars = {
+  density: number; // stars per 100k px^2 (e.g., 2..18)
+  twinkle: number; // 0..1 twinkle intensity
+  speed: number; // twinkle speed factor
+  shootingChance: number; // 0..1 probability per second
+};
+
+export type BgSunset = {
+  scheme: "night" | "sunset" | "dawn";
+  speed: number; // hue rotate deg/s
+};
+
 export type ThemeState = {
+  // Core theme
   preset: ThemePresetKey;
   mode: ThemeMode;
   background: string; // hex
@@ -19,6 +43,13 @@ export type ThemeState = {
   glow: number; // 0..1
   rainbowSpeed: number; // deg per second
   animated: boolean;
+
+  // Animated backgrounds
+  bgEffect: BgEffect;
+  bgChaser: BgChaser;
+  bgStars: BgStars;
+  bgSunset: BgSunset;
+
   // actions
   setPreset: (k: ThemePresetKey) => void;
   setMode: (m: ThemeMode) => void;
@@ -26,9 +57,14 @@ export type ThemeState = {
   setGlow: (g: number) => void;
   setRainbowSpeed: (s: number) => void;
   setAnimated: (a: boolean) => void;
+
+  setBgEffect: (e: BgEffect) => void;
+  updateBgChaser: (p: Partial<BgChaser>) => void;
+  updateBgStars: (p: Partial<BgStars>) => void;
+  updateBgSunset: (p: Partial<BgSunset>) => void;
 };
 
-const STORAGE_KEY = "retrospy_theme_v1";
+const STORAGE_KEY = "retrospy_theme_v2";
 
 function save(state: ThemeState) {
   try {
@@ -49,7 +85,6 @@ function load(): Partial<ThemeState> | null {
 
 // Helpers
 function hexToHue(hex: string): number {
-  // Rough: convert to HSL hue
   const res = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   if (!res) return 110;
   const r = parseInt(res[1], 16) / 255;
@@ -88,12 +123,37 @@ const DEFAULTS: ThemeState = {
   glow: 0.75,
   rainbowSpeed: 20,
   animated: true,
+
+  bgEffect: "none",
+  bgChaser: {
+    lineCount: 12,
+    speed: 120,
+    thickness: 3,
+    angleDeg: -12,
+    gap: 60,
+    glow: 0.5
+  },
+  bgStars: {
+    density: 8, // per 100k px^2
+    twinkle: 0.7,
+    speed: 1,
+    shootingChance: 0.03 // 3% per second
+  },
+  bgSunset: {
+    scheme: "night",
+    speed: 2
+  },
+
   setPreset: () => {},
   setMode: () => {},
   setColors: () => {},
   setGlow: () => {},
   setRainbowSpeed: () => {},
-  setAnimated: () => {}
+  setAnimated: () => {},
+  setBgEffect: () => {},
+  updateBgChaser: () => {},
+  updateBgStars: () => {},
+  updateBgSunset: () => {}
 };
 
 export const useTheme = create<ThemeState>((set) => {
@@ -134,6 +194,30 @@ export const useTheme = create<ThemeState>((set) => {
     setAnimated: (a) =>
       set((s) => {
         const next = { ...s, animated: a };
+        save(next);
+        return next;
+      }),
+    setBgEffect: (e) =>
+      set((s) => {
+        const next = { ...s, bgEffect: e };
+        save(next);
+        return next;
+      }),
+    updateBgChaser: (p) =>
+      set((s) => {
+        const next = { ...s, bgChaser: { ...s.bgChaser, ...p } };
+        save(next);
+        return next;
+      }),
+    updateBgStars: (p) =>
+      set((s) => {
+        const next = { ...s, bgStars: { ...s.bgStars, ...p } };
+        save(next);
+        return next;
+      }),
+    updateBgSunset: (p) =>
+      set((s) => {
+        const next = { ...s, bgSunset: { ...s.bgSunset, ...p } };
         save(next);
         return next;
       })

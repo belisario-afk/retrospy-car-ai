@@ -12,7 +12,7 @@ import { AudioFXProvider } from "./lib/audiofx";
 import SpeedLoudnessController from "./components/SpeedLoudnessController";
 import AndroidOptimizeController from "./components/AndroidOptimizeController";
 import ThemeController from "./components/ThemeController";
-import Knob3D from "./components/Knob3D";
+import BackgroundAnimator from "./components/BackgroundAnimator";
 import { create } from "zustand";
 import classNames from "classnames";
 import "./styles/theme-vars.css";
@@ -55,15 +55,10 @@ const App: React.FC = () => {
     if (nav.route === "bezel") return <PrintableBezel />;
     return (
       <>
-        {/* Top row: Player + Knob side by side */}
-        <div className="grid grid-cols-1 md:grid-cols-[1fr,240px] gap-3 items-start">
-          <SpotifyPlayer />
-          <div className="md:sticky md:top-16 self-start">
-            <Knob3D label="Volume" />
-          </div>
-        </div>
+        {/* Full-width upgraded playback controller */}
+        <SpotifyPlayer />
 
-        {/* Second row: rest of dash (visualizer, etc.) */}
+        {/* Visual area below */}
         <div className="mt-3">
           <DashScreen />
         </div>
@@ -81,9 +76,10 @@ const App: React.FC = () => {
           className={classNames("min-h-screen font-mono", "crt relative")}
           style={{ background: "var(--bg)", color: "var(--fg)" }}
         >
+          <BackgroundAnimator />
           <div className="crt-scanline" aria-hidden="true"></div>
           <AppShell onNavigate={(route) => nav.setRoute(route)} currentRoute={nav.route} />
-          <main className="double-din p-3 sm:p-4 md:p-6 mt-2">{content}</main>
+          <main className="double-din p-3 sm:p-4 md:p-6 mt-2 relative z-[1]">{content}</main>
         </div>
       </TTSProvider>
     </AudioFXProvider>
