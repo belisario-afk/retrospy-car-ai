@@ -1,24 +1,34 @@
 <!DOCTYPE html>
-<html lang="en" class="h-full">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0a0f0a" />
-    <meta
-      name="description"
-      content="RetroSpy Car AI — a retro-future, green-on-black spy car dash with Spotify integration."
-    />
+
+    <!-- App identity -->
     <title>RetroSpy Car AI</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap"
-      rel="stylesheet"
-    />
+    <meta name="application-name" content="RetroSpy Car AI" />
+    <meta name="description" content="RetroSpy Car AI - dash UI" />
+
+    <!-- PWA + Fullscreen hints -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="RetroSpy" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+
+    <!-- Viewport for edge-to-edge on devices with insets -->
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+
+    <!-- Icons -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/icons/icon-192.png" />
+
+    <!-- Optional: avoid phone number auto-detection styling -->
+    <meta name="format-detection" content="telephone=no" />
   </head>
-  <body class="h-full bg-crt-bg text-crt-text">
+  <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root" class="h-full"></div>
-    <!-- Optional: Spotify Web Playback SDK loaded dynamically in code for better error handling
-    <script src="https://sdk.scdn.co/spotify-player.js"></script> -->
+    <div id="root"></div>
   </body>
 </html>

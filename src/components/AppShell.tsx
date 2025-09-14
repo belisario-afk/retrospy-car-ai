@@ -1,5 +1,6 @@
 import React from "react";
 import LoudnessToggle from "./LoudnessToggle";
+import InstallPrompt from "./InstallPrompt";
 
 type Props = {
   currentRoute: "dash" | "settings" | "bezel" | "callback" | "connect";
@@ -20,6 +21,7 @@ const AppShell: React.FC<Props> = ({ currentRoute, onNavigate }) => {
           RetroSpy Car AI
         </div>
         <div className="flex items-center gap-3">
+          <InstallPrompt />
           <LoudnessToggle />
           <nav aria-label="Main" className="flex gap-2 sm:gap-3">
             <button

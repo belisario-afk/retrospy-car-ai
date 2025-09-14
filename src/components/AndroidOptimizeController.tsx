@@ -8,7 +8,6 @@ function getScreenOrientation(): ScreenOrientation | null {
   return typeof sc.orientation !== "undefined" ? sc.orientation! : null;
 }
 
-// Best-effort landscape lock (requires fullscreen on many Androids)
 async function lockLandscape() {
   try {
     const orientation = getScreenOrientation();
@@ -16,7 +15,7 @@ async function lockLandscape() {
       await orientation.lock("landscape");
     }
   } catch {
-    // ignore (not supported or requires fullscreen)
+    // ignore
   }
 }
 
@@ -48,10 +47,8 @@ const AndroidOptimizeController: React.FC = () => {
   useEffect(() => {
     if (!isAndroid()) return;
 
-    // Acquire wake lock ASAP
     void acquire();
 
-    // Try Media Session hardware button mapping for Spotify controls
     try {
       if ("mediaSession" in navigator) {
         navigator.mediaSession?.setActionHandler?.("previoustrack", () => {
@@ -71,14 +68,25 @@ const AndroidOptimizeController: React.FC = () => {
       // ignore
     }
 
-    // If it's Samsung Tab A7 Lite, try to go landscape and fullscreen once
-    const container = document.documentElement;
-    if (isSamsung() && isSMT227U()) {
+    // Best: request fullscreen and lock orientation on first user tap
+    const onFirstTap = () => {
+      const container = document.documentElement;
       void requestFullscreen(container).then(() => lockLandscape());
-    } else {
-      // Attempt a landscape lock even if not fullscreen; many devices just ignore safely
+      window.removeEventListener("click", onFirstTap);
+      window.removeEventListener("touchstart", onFirstTap);
+    };
+    window.addEventListener("click", onFirstTap, { once: true });
+    window.addEventListener("touchstart", onFirstTap, { once: true });
+
+    // If it's Samsung Tab A7 Lite, prefer landscape as well (some devices honor it without fullscreen)
+    if (isSamsung() && isSMT227U()) {
       void lockLandscape();
     }
+
+    return () => {
+      window.removeEventListener("click", onFirstTap);
+      window.removeEventListener("touchstart", onFirstTap);
+    };
   }, [acquire]);
 
   return null;
